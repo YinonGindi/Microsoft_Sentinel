@@ -496,12 +496,7 @@
                 "id": "[variables('monitorLogsManagedApiId')]",
                 "connectionId": "[variables('monitorLogsConnectionId')]",
                 "connectionName": "[variables('monitorLogsConnectionName')]",
-                "connectionProperties": {
-                  "authentication": {
-                    "type": "ManagedServiceIdentity",
-                    "identity": "[variables('managedIdentityId')]"
-                  }
-                }
+                "connectionProperties": {}
               },
               "office365": {
                 "id": "[variables('office365ManagedApiId')]",
