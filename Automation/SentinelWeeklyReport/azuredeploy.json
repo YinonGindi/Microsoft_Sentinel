@@ -206,10 +206,10 @@
     {
       "type": "Microsoft.Web/connections",
       "apiVersion": "2016-06-01",
-      "name": "[concat('sentinelweeklyreport-',variables('automationConnectionName'))]",
+      "name": "variables('automationConnectionName')",
       "location": "[parameters('location')]",
       "properties": {
-        "displayName": "azureautomation",
+        "displayName": "sentinelweeklyreport-azureautomation",
         "api": {
           "id": "[variables('automationManagedApiId')]"
         },
@@ -219,10 +219,10 @@
     {
       "type": "Microsoft.Web/connections",
       "apiVersion": "2016-06-01",
-      "name": "[concat('sentinelweeklyreport-',variables('monitorLogsConnectionName'))]",
+      "name": "variables('monitorLogsConnectionName')",
       "location": "[parameters('location')]",
       "properties": {
-        "displayName": "azuremonitorlogs",
+        "displayName": "sentinelweeklyreport-azuremonitorlogs",
         "api": {
           "id": "[variables('monitorLogsManagedApiId')]"
         }
@@ -231,10 +231,10 @@
     {
       "type": "Microsoft.Web/connections",
       "apiVersion": "2016-06-01",
-      "name": "[concat('sentinelweeklyreport-',variables('office365ConnectionName'))]",
+      "name": "variables('office365ConnectionName')",
       "location": "[parameters('location')]",
       "properties": {
-        "displayName": "office365",
+        "displayName": "sentinelweeklyreport-office365",
         "api": {
           "id": "[variables('office365ManagedApiId')]"
         }
