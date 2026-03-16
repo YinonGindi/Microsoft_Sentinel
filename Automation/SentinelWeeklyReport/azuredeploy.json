@@ -395,8 +395,7 @@
                         }
                     ]
                 }
-            }
-        },
+            },
             "Create_HTML_table": {
               "runAfter": {
                 "Run_query_and_list_results_V2": [ "Succeeded" ]
@@ -508,6 +507,7 @@
           }
         }
       }
+    }
   ],
   "outputs": {
     "managedIdentityPrincipalId": {
