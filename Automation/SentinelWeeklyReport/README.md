@@ -1,6 +1,6 @@
 # ARM Template: Sentinel Weekly Report — Logic App + Managed Identity + Automation Account
 
-[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2FYinonGindi%2FMSSentinel%2Fmain%2FSentinelWeeklyReport%2Fazuredeploy.json/createUIDefinitionUri/https%3A%2F%2Fraw.githubusercontent.com%2FYinonGindi%2FMSSentinel%2Fmain%2FSentinelWeeklyReport%2FcreateUiDefinition.json)
+[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2FYinonGindi%2FMSSentinel%2Fmain%2FSentinelWeeklyReport%2Fazuredeploy.json/createUIDefinitionUri/https%3A%2F%2Fraw.githubusercontent.com%2FYinonGindi%2FMSSentinel%2Fmain%2FAutomation%2FSentinelWeeklyReport%2FcreateUiDefinition.json)
 
 Deploys the full **Microsoft Sentinel Weekly Report** infrastructure via a single ARM template.
 
