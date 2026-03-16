@@ -168,7 +168,7 @@
                 "inputs": {
                     "host": {
                         "connection": {
-                            "name": "@parameters('$connections')['azuresentinel-1']['connectionId']"
+                            "name": "@parameters('$connections')['azuresentinel']['connectionId']"
                         }
                     },
                     "method": "get",
@@ -194,7 +194,7 @@
                         "inputs": {
                             "host": {
                                 "connection": {
-                                    "name": "@parameters('$connections')['azuresentinel-1']['connectionId']"
+                                    "name": "@parameters('$connections')['azuresentinel']['connectionId']"
                                 }
                             },
                             "method": "put",
@@ -233,7 +233,7 @@
                         "inputs": {
                             "host": {
                                 "connection": {
-                                    "name": "@parameters('$connections')['azuresentinel-1']['connectionId']"
+                                    "name": "@parameters('$connections')['azuresentinel']['connectionId']"
                                 }
                             },
                             "method": "delete",
@@ -258,7 +258,7 @@
                             "inputs": {
                                 "host": {
                                     "connection": {
-                                        "name": "@parameters('$connections')['azuresentinel-1']['connectionId']"
+                                        "name": "@parameters('$connections')['azuresentinel']['connectionId']"
                                     }
                                 },
                                 "method": "put",
@@ -291,7 +291,7 @@
                             "inputs": {
                                 "host": {
                                     "connection": {
-                                        "name": "@parameters('$connections')['azuresentinel-1']['connectionId']"
+                                        "name": "@parameters('$connections')['azuresentinel']['connectionId']"
                                     }
                                 },
                                 "method": "delete",
@@ -319,7 +319,7 @@
                         "inputs": {
                             "host": {
                                 "connection": {
-                                    "name": "@parameters('$connections')['azuresentinel-1']['connectionId']"
+                                    "name": "@parameters('$connections')['azuresentinel']['connectionId']"
                                 }
                             },
                             "method": "get",
