@@ -415,7 +415,7 @@
                   {
                     "name": "HTMLBody",
                     "type": "string",
-                    "value": "@{substring(body('Create_HTML_table'), 0, sub(length(body('Create_HTML_table')), 8))}\n<tr><th>@{first(body('Run_query_and_list_results_V2')?['value'])?['Table']}</th>\n<th>@{first(body('Run_query_and_list_results_V2')?['value'])?['Previous Week (GB)']}</th>\n<th>@{first(body('Run_query_and_list_results_V2')?['value'])?['Current Week (GB)']}</th>\n<th>@{first(body('Run_query_and_list_results_V2')?['value'])?['Change (GB)']}</th>\n<th>@{first(body('Run_query_and_list_results_V2')?['value'])?['Change Percent']}</th>\n<th>@{first(body('Run_query_and_list_results_V2')?['value'])?['Total Percent']}</th></tr></table>"
+                    "value": "@{substring(body('Create_HTML_table'), 0, sub(length(body('Create_HTML_table')), 8))}\n<tr><th>@{first(body('Run_query_and_list_results_V2')?['value'])?['Table']}</th>\n<th>@{first(body('Run_query_and_list_results_V2')?['value'])?['Previous Week (GB)']}</th>\n<th>@{first(body('Run_query_and_list_results_V2')?['value'])?['Current Week (GB)']}</th>\n<th>@{first(body('Run_query_and_list_results_V2')?['value'])?['Change (GB)']}</th>\n<th>@{first(body('Run_query_and_list_results_V2')?['value'])?['Change Percent']}</th>\n<th>@{first(body('Run_query_and_list_results_V2')?['value'])?['Total Percent']}</th><th>@{first(body('Run_query_and_list_results_V2')?['value'])?['Estimated Cost']}</th></tr></table>"
                   }
                 ]
               }
