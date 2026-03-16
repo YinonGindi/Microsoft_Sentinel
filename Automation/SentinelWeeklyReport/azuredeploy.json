@@ -355,7 +355,7 @@
                 },
                 "method": "post",
                 "body": {
-                  "query": "let Pricing=5.56;\nlet CurrentWeekStart = startofweek(now());\nlet PreviousWeekStart = startofweek(now()) - 7d;\nlet CurrentWeek=Usage\n    | where TimeGenerated >= CurrentWeekStart\n    | where IsBillable == true\n    | summarize CurrentGB = round(sum(Quantity) / 1024, 2) by DataType\n    | extend Cost=CurrentGB*Pricing\n| extend x=1\n| as T\n| join kind=inner (\n       T\n       | summarize WeekTotalGB = sum(CurrentGB),x=1\n   ) on x\n   | project-away x*   \n| extend PercentOfTotal = round(CurrentGB / WeekTotalGB * 100, 2)\n| join kind=fullouter (Usage\n    | where TimeGenerated >= PreviousWeekStart and TimeGenerated < CurrentWeekStart\n    | where IsBillable == true\n    | summarize PreviousGB = round(sum(Quantity) / 1024, 2) by DataType\n    ) on DataType\n| extend DataType = coalesce(DataType, DataType1)\n| extend CurrentGB = coalesce(CurrentGB, 0.0), PreviousGB = coalesce(PreviousGB, 0.0)\n| extend ChangeGB = round(CurrentGB - PreviousGB, 2)\n| extend ChangePercent = iff(PreviousGB > 0, round((CurrentGB - PreviousGB) / PreviousGB * 100, 2), 0.0)\n| where CurrentGB != 0 and PreviousGB != 0\n| project DataType, PreviousGB,CurrentGB, ChangeGB,ChangePercent,PercentOfTotal,Cost;\nCurrentWeek\n| union  (CurrentWeek | summarize CurrentGB=sum(CurrentGB),PreviousGB=sum(PreviousGB),DataType=' Total',Cost=sum(Cost),PercentOfTotal=sum(PercentOfTotal)\n| extend ChangeGB = round(CurrentGB - PreviousGB, 2)\n| extend ChangePercent = iff(PreviousGB > 0, round((CurrentGB - PreviousGB) / PreviousGB * 100, 2), 0.0))\n| order by CurrentGB desc\n| project Table=DataType, ['Previous Week (GB)']=PreviousGB,['Current Week (GB)']= CurrentGB, ['Change (GB)']=ChangeGB,['Change Percent']=strcat(ChangePercent,'%'),['Total Percent']=strcat(PercentOfTotal,'%'),['Estimated Cost']=strcat('$',round(Cost,2))",
+                  "query": let Pricing=5.56;\nlet CurrentWeekStart = startofweek(now());\nlet PreviousWeekStart = startofweek(now()) - 7d;\nlet CurrentWeek=Usage\n    | where TimeGenerated >= CurrentWeekStart\n    | where IsBillable == true\n    | summarize CurrentGB = round(sum(Quantity) / 1024, 2) by DataType\n    | extend Cost=CurrentGB*Pricing\n| extend x=1\n| as T\n| join kind=inner (\n       T\n       | summarize WeekTotalGB = sum(CurrentGB),x=1\n   ) on x\n   | project-away x*   \n| extend PercentOfTotal = round(CurrentGB / WeekTotalGB * 100, 2)\n| join kind=fullouter (Usage\n    | where TimeGenerated >= PreviousWeekStart and TimeGenerated < CurrentWeekStart\n    | where IsBillable == true\n    | summarize PreviousGB = round(sum(Quantity) / 1024, 2) by DataType\n    ) on DataType\n| extend DataType = coalesce(DataType, DataType1)\n| extend CurrentGB = coalesce(CurrentGB, 0.0), PreviousGB = coalesce(PreviousGB, 0.0)\n| extend ChangeGB = round(CurrentGB - PreviousGB, 2)\n| extend ChangePercent = iff(PreviousGB > 0, round((CurrentGB - PreviousGB) / PreviousGB * 100, 2), 0.0)\n| where CurrentGB != 0 and PreviousGB != 0\n| project DataType, PreviousGB,CurrentGB, ChangeGB,ChangePercent,PercentOfTotal,Cost;\nCurrentWeek\n| union  (CurrentWeek | summarize CurrentGB=sum(CurrentGB),PreviousGB=sum(PreviousGB),DataType=' Total',Cost=sum(Cost),PercentOfTotal=sum(PercentOfTotal)\n| extend ChangeGB = round(CurrentGB - PreviousGB, 2)\n| extend ChangePercent = iff(PreviousGB > 0, round((CurrentGB - PreviousGB) / PreviousGB * 100, 2), 0.0))\n| order by CurrentGB desc\n| project Table=DataType, ['Previous Week (GB)']=PreviousGB,['Current Week (GB)']= round(CurrentGB,2), ['Change (GB)']=round(ChangeGB,2),['Change Percent']=strcat(ChangePercent,'%'),['Total Percent']=strcat(PercentOfTotal,'%'),['Estimated Cost']=strcat('$',round(Cost,2))",
                   "timerangetype": "3"
                 },
                 "path": "/queryDataV2",
@@ -367,6 +367,36 @@
                 }
               }
             },
+            "Create_Mini_HTML_table": {
+                "runAfter": {
+                    "Run_query_and_list_results_V2": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "Table",
+                "inputs": {
+                    "from": "@take(skip(body('Run_query_and_list_results_V2')?['value'],1),5)",
+                    "format": "HTML"
+                }
+            },
+            "Initialize_Mini_HTML": {
+                "runAfter": {
+                    "Create_Mini_HTML_table": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "InitializeVariable",
+                "inputs": {
+                    "variables": [
+                        {
+                            "name": "MiniHTMLBody",
+                            "type": "string",
+                            "value": "@{substring(body('Create_Mini_HTML_table'), 0, sub(length(body('Create_Mini_HTML_table')), 8))}\n<tr><th>@{first(body('Run_query_and_list_results_V2')?['value'])?['Table']}</th>\n<th>@{first(body('Run_query_and_list_results_V2')?['value'])?['Previous Week (GB)']}</th>\n<th>@{first(body('Run_query_and_list_results_V2')?['value'])?['Current Week (GB)']}</th>\n<th>@{first(body('Run_query_and_list_results_V2')?['value'])?['Change (GB)']}</th>\n<th>@{first(body('Run_query_and_list_results_V2')?['value'])?['Change Percent']}</th>\n<th>@{first(body('Run_query_and_list_results_V2')?['value'])?['Total Percent']}</th></tr></table>"
+                        }
+                    ]
+                }
+            }
+        },
             "Create_HTML_table": {
               "runAfter": {
                 "Run_query_and_list_results_V2": [ "Succeeded" ]
@@ -377,7 +407,7 @@
                 "format": "HTML"
               }
             },
-            "Initialize_variables": {
+            "Initialize_HTML": {
               "runAfter": {
                 "Create_HTML_table": [ "Succeeded" ]
               },
@@ -394,9 +424,16 @@
             },
             "Send_an_email_(V2)": {
               "runAfter": {
-                "Get_job_output": [ "Succeeded" ],
-                "Initialize_variables": [ "Succeeded" ]
-              },
+                    "Initialize_HTML": [
+                        "Succeeded"
+                    ],
+                    "Initialize_Mini_HTML": [
+                        "Succeeded"
+                    ],
+                    "Get_job_output": [
+                        "Succeeded"
+                    ]
+                },
               "type": "ApiConnection",
               "inputs": {
                 "host": {
@@ -407,8 +444,14 @@
                 "method": "post",
                 "body": {
                   "To": "[parameters('emailRecipient')]",
-                  "Subject": "Microsoft Sentinel Content Hub Updates",
-                  "Body": "<style>\nbody { font-family: Segoe UI, Arial, sans-serif; font-size: 14px; color: #333; }.\nh1 { color: #0066cc; }\nh2 { color: #0078D4; margin-bottom: 4px; }\ntable { border-collapse: collapse; width: 100%; margin-top: 10px; }\nth { background-color: #0078D4; color: #fff; padding: 10px 12px; text-align: left; }\ntd { padding: 8px 12px; border-bottom: 1px solid #ddd; }\ntr:nth-child(even) { background-color: #f5f5f5; }\n.summary { margin: 20px 0; padding: 10px; background-color: #f0f8ff; border-left: 5px solid #0066cc; }\n</style>\n\n<h1>Microsoft Sentinel Weekly Report</h1>\n<div class=\"summary\">\n<p>Sentinel Workspace Name: @{parameters('WorkspaceName')}</p>\n<p>Report Generated: @{\nformatDateTime(\n  convertTimeZone(utcNow(), 'UTC','Israel Standard Time'),\n  'HH:mm:ss dd-MM-yyyy'\n)\n}</p>\n</div>\n<h2>\ud83d\udcca Weekly Ingestion Report</h2>\n<p>Comparison of current week vs. previous week.</p>\n@{variables('HTMLBody')}\n<br>\n@{body('Get_job_output')}",
+                        "Subject": "Microsoft Sentinel Weekly Summary",
+                        "Body": "<style>\nbody { font-family: Segoe UI, Arial, sans-serif; font-size: 14px; color: #333; }.\nh1 { color: #0066cc; }\nh2 { color: #0078D4; margin-bottom: 4px; }\ntable { border-collapse: collapse; width: 100%; margin-top: 10px; }\nth { background-color: #0078D4; color: #fff; padding: 10px 12px; text-align: left; }\ntd { padding: 8px 12px; border-bottom: 1px solid #ddd; }\ntr:nth-child(even) { background-color: #f5f5f5; }\n.summary { margin: 20px 0; padding: 10px; background-color: #f0f8ff; border-left: 5px solid #0066cc; }\n</style>\n<h1>Microsoft Sentinel Weekly Report</h1>\n<div class=\"summary\">\n<p>Sentinel Workspace Name: @{parameters('WorkspaceName')}</p>\n<p>Report Generated: @{\nformatDateTime(\n  convertTimeZone(utcNow(), 'UTC','Israel Standard Time'),\n  'HH:mm:ss dd-MM-yyyy'\n)\n}</p>\n</div>\n<h2>📊 Weekly Ingestion Report</h2>\n<p>Comparison of current week vs. previous week.</p>\n@{variables('MiniHTMLBody')}\n<br>\n@{decodeBase64(json(body('Get_job_output'))?['MiniHtml'])}\n\n",
+                        "Attachments": [
+                            {
+                                "Name": "SentinelReport-@{formatDateTime(convertTimeZone(utcNow(), 'UTC','Israel Standard Time'),'dd-MM-yyyy')}.html",
+                                "ContentBytes": "@base64(concat('<style>','\n','body { font-family: Segoe UI, Arial, sans-serif; font-size: 14px; color: #333; }.','\n','h1 { color: #0066cc; }','\n','h2 { color: #0078D4; margin-bottom: 4px; }','\n','table { border-collapse: collapse; width: 100%; margin-top: 10px; }','\n','th { background-color: #0078D4; color: #fff; padding: 10px 12px; text-align: left; }','\n','td { padding: 8px 12px; border-bottom: 1px solid #ddd; }','\n','tr:nth-child(even) { background-color: #f5f5f5; }','\n','.summary { margin: 20px 0; padding: 10px; background-color: #f0f8ff; border-left: 5px solid #0066cc; }','\n','</style>','\n','\n','<h1>Microsoft Sentinel Weekly Report</h1>','\n','<div class=\"summary\">','\n','<p>Sentinel Workspace Name: ',parameters('WorkspaceName'),'</p>','\n','<p>Report Generated: ',\nformatDateTime(\n  convertTimeZone(utcNow(), 'UTC','Israel Standard Time'),\n  'HH:mm:ss dd-MM-yyyy'\n)\n,'</p>','\n','</div>','\n','<h2>📊 Weekly Ingestion Report</h2>','\n','<p>Comparison of current week vs. previous week.</p>','\n',variables('HTMLBody'),'\n','<br>','\n',decodeBase64(json(body('Get_job_output'))?['FullHtml']),'\n','<br>'))"
+                            }
+                        ],
                   "Importance": "Normal"
                 },
                 "path": "/v2/Mail"
