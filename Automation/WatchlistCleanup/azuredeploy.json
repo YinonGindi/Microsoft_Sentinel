@@ -110,199 +110,300 @@
             }
           },
           "actions": {
-            "Initialize_CutoffDate": {
-              "runAfter": {},
-              "type": "InitializeVariable",
-              "inputs": {
-                "variables": [
-                  {
-                    "name": "cutoffDate",
-                    "type": "string",
-                    "value": "@{formatDateTime(addDays(utcNow(), mul(-1, parameters('retentionDays'))), 'yyyy-MM-ddTHH:mm:ssZ')}"
-                  }
-                ]
-              }
-            },
-            "Get_all_Watchlist_Items": {
-              "runAfter": {
-                "Initialize_CutoffDate": [ "Succeeded" ]
-              },
-              "type": "ApiConnection",
-              "inputs": {
-                "host": {
-                  "connection": {
-                    "name": "@parameters('$connections')['azuresentinel']['connectionId']"
-                  }
-                },
-                "method": "get",
-                "path": "/V2/Watchlists/subscriptions/@{encodeURIComponent(parameters('subscriptionId'))}/resourceGroups/@{encodeURIComponent(parameters('workspaceResourceGroup'))}/workspaces/@{encodeURIComponent(parameters('workspaceId'))}/watchlists/@{encodeURIComponent(parameters('watchlistAlias'))}/watchlistItems/",
-                "queries": {
-                  "skipToken": ""
+            "Initialize_Variables": {
+                "runAfter": {},
+                "type": "InitializeVariable",
+                "inputs": {
+                    "variables": [
+                        {
+                            "name": "cutoffDate",
+                            "type": "string",
+                            "value": "@{formatDateTime(addDays(utcNow(), mul(-1, parameters('retentionDays'))), 'yyyy-MM-ddTHH:mm:ssZ')}"
+                        },
+                        {
+                            "name": "skipToken",
+                            "type": "string"
+                        },
+                        {
+                            "name": "allResults",
+                            "type": "array"
+                        }
+                    ]
                 }
-              }
-            },
-            "Get_Watchlist_Info": {
-              "runAfter": {
-                "Initialize_CutoffDate": [ "Succeeded" ]
-              },
-              "type": "ApiConnection",
-              "inputs": {
-                "host": {
-                  "connection": {
-                    "name": "@parameters('$connections')['azuresentinel']['connectionId']"
-                  }
-                },
-                "method": "get",
-                "path": "/Watchlists/subscriptions/@{encodeURIComponent(parameters('subscriptionId'))}/resourceGroups/@{encodeURIComponent(parameters('workspaceResourceGroup'))}/workspaces/@{encodeURIComponent(parameters('workspaceId'))}/watchlists/@{encodeURIComponent(parameters('watchlistAlias'))}"
-              }
             },
             "Filter_Stale_Items": {
-              "runAfter": {
-                "Get_all_Watchlist_Items": [ "Succeeded" ],
-                "Get_Watchlist_Info": [ "Succeeded" ]
-              },
-              "type": "Query",
-              "inputs": {
-                "from": "@body('Get_all_Watchlist_Items')?['properties']?['watchlistItems']",
-                "where": "@greater(ticks(concat('20',substring(item()?['properties.itemsKeyValue']?['Date'],6,2),'-',substring(item()?['properties.itemsKeyValue']?['Date'],3,2),'-',substring(item()?['properties.itemsKeyValue']?['Date'],0,2),'T00:00:00Z')), ticks(variables('cutoffDate')))"
-              }
+                "runAfter": {
+                    "Get_Watchlist_Info": [
+                        "Succeeded"
+                    ],
+                    "loop_on_results": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "Query",
+                "inputs": {
+                    "from": "@variables('allResults')",
+                    "where": "@greater(ticks(concat('20',substring(item()?['properties.itemsKeyValue']?['Date'],6,2),'-',substring(item()?['properties.itemsKeyValue']?['Date'],3,2),'-',substring(item()?['properties.itemsKeyValue']?['Date'],0,2),'T00:00:00Z')), ticks(variables('cutoffDate')))"
+                }
             },
             "Select_Data_Only": {
-              "runAfter": {
-                "Filter_Stale_Items": [ "Succeeded" ]
-              },
-              "type": "Select",
-              "inputs": {
-                "from": "@body('Filter_Stale_Items')",
-                "select": "@item()?['properties.itemsKeyValue']"
-              }
+                "runAfter": {
+                    "Filter_Stale_Items": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "Select",
+                "inputs": {
+                    "from": "@body('Filter_Stale_Items')",
+                    "select": "@item()?['properties.itemsKeyValue']"
+                }
+            },
+            "Get_Watchlist_Info": {
+                "runAfter": {
+                    "Initialize_Variables": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "ApiConnection",
+                "inputs": {
+                    "host": {
+                        "connection": {
+                            "name": "@parameters('$connections')['azuresentinel-1']['connectionId']"
+                        }
+                    },
+                    "method": "get",
+                    "path": "/Watchlists/subscriptions/@{encodeURIComponent(parameters('subscriptionId'))}/resourceGroups/@{encodeURIComponent(parameters('workspaceResourceGroup'))}/workspaces/@{encodeURIComponent(parameters('workspaceId'))}/watchlists/@{encodeURIComponent(parameters('watchlistAlias'))}"
+                }
             },
             "Condition": {
-              "runAfter": {
-                "Select_Data_Only": [ "Succeeded" ]
-              },
-              "type": "If",
-              "expression": {
-                "or": [
-                  {
-                    "equals": [
-                      "@empty(body('Select_Data_Only'))",
-                      false
-                    ]
-                  }
-                ]
-              },
-              "actions": {
-                "Create_CSV_table_for_raw_input": {
-                  "type": "Table",
-                  "inputs": {
-                    "from": "@body('Select_Data_Only')",
-                    "format": "CSV"
-                  }
-                },
-                "Delete_the_Watchlist": {
-                  "runAfter": {
-                    "Create_CSV_table_for_raw_input": [ "Succeeded" ]
-                  },
-                  "type": "ApiConnection",
-                  "inputs": {
-                    "host": {
-                      "connection": {
-                        "name": "@parameters('$connections')['azuresentinel']['connectionId']"
-                      }
-                    },
-                    "method": "delete",
-                    "path": "/V2/Watchlists/subscriptions/@{encodeURIComponent(parameters('subscriptionId'))}/resourceGroups/@{encodeURIComponent(parameters('workspaceResourceGroup'))}/workspaces/@{encodeURIComponent(parameters('workspaceId'))}/watchlists/@{encodeURIComponent(parameters('watchlistAlias'))}"
-                  }
-                },
-                "Wait_5_Minutes": {
-                  "runAfter": {
-                    "Delete_the_Watchlist": [ "Succeeded" ]
-                  },
-                  "type": "Wait",
-                  "inputs": {
-                    "interval": {
-                      "count": 5,
-                      "unit": "Minute"
-                    }
-                  }
-                },
-                "Update_the_Watchlist_with_data": {
-                  "runAfter": {
-                    "Wait_5_Minutes": [ "Succeeded" ]
-                  },
-                  "type": "ApiConnection",
-                  "inputs": {
-                    "host": {
-                      "connection": {
-                        "name": "@parameters('$connections')['azuresentinel']['connectionId']"
-                      }
-                    },
-                    "method": "put",
-                    "body": {
-                      "displayName": "@{body('Get_Watchlist_Info')?['properties']?['watchlist']?['properties.displayName']}",
-                      "description": "@{body('Get_Watchlist_Info')?['properties']?['watchlist']?['properties.description']}",
-                      "itemsSearchKey": "@{body('Get_Watchlist_Info')?['properties']?['watchlistItemsSearchKey']}",
-                      "provider": "@{body('Get_Watchlist_Info')?['properties']?['watchlist']?['properties.provider']}",
-                      "contentType": "text/csv",
-                      "rawContent": "@{body('Create_CSV_table_for_raw_input')}"
-                    },
-                    "path": "/V2/Watchlists/subscriptions/@{encodeURIComponent(parameters('subscriptionId'))}/resourceGroups/@{encodeURIComponent(parameters('workspaceResourceGroup'))}/workspaces/@{encodeURIComponent(parameters('workspaceId'))}/watchlists/@{encodeURIComponent(parameters('watchlistAlias'))}"
-                  }
-                }
-              },
-              "else": {
                 "actions": {
-                  "Delete_the_entire_Watchlist": {
-                    "type": "ApiConnection",
-                    "inputs": {
-                      "host": {
-                        "connection": {
-                          "name": "@parameters('$connections')['azuresentinel']['connectionId']"
+                    "Create_CSV_table_for_raw_input": {
+                        "type": "Table",
+                        "inputs": {
+                            "from": "@body('Select_Data_Only')",
+                            "format": "CSV"
                         }
-                      },
-                      "method": "delete",
-                      "path": "/V2/Watchlists/subscriptions/@{encodeURIComponent(parameters('subscriptionId'))}/resourceGroups/@{encodeURIComponent(parameters('workspaceResourceGroup'))}/workspaces/@{encodeURIComponent(parameters('workspaceId'))}/watchlists/@{encodeURIComponent(parameters('watchlistAlias'))}"
-                    }
-                  },
-                  "Delay_5_minutes": {
-                    "runAfter": {
-                      "Delete_the_entire_Watchlist": [ "Succeeded" ]
                     },
-                    "type": "Wait",
-                    "inputs": {
-                      "interval": {
-                        "count": 5,
-                        "unit": "Minute"
-                      }
-                    }
-                  },
-                  "Update_the_Watchlist_with_No_Data": {
-                    "runAfter": {
-                      "Delay_5_minutes": [ "Succeeded" ]
-                    },
-                    "type": "ApiConnection",
-                    "inputs": {
-                      "host": {
-                        "connection": {
-                          "name": "@parameters('$connections')['azuresentinel']['connectionId']"
+                    "Update_the_Watchlist_with_data": {
+                        "runAfter": {
+                            "Wait_5_Minutes": [
+                                "Succeeded"
+                            ]
+                        },
+                        "type": "ApiConnection",
+                        "inputs": {
+                            "host": {
+                                "connection": {
+                                    "name": "@parameters('$connections')['azuresentinel-1']['connectionId']"
+                                }
+                            },
+                            "method": "put",
+                            "body": {
+                                "displayName": "@{body('Get_Watchlist_Info')?['properties']?['watchlist']?['properties.displayName']}",
+                                "description": "@{body('Get_Watchlist_Info')?['properties']?['watchlist']?['properties.description']}",
+                                "itemsSearchKey": "@{body('Get_Watchlist_Info')?['properties']?['watchlistItemsSearchKey']}",
+                                "provider": "@{body('Get_Watchlist_Info')?['properties']?['watchlist']?['properties.provider']}",
+                                "contentType": "text/csv",
+                                "rawContent": "@{body('Create_CSV_table_for_raw_input')}"
+                            },
+                            "path": "/V2/Watchlists/subscriptions/@{encodeURIComponent(parameters('subscriptionId'))}/resourceGroups/@{encodeURIComponent(parameters('workspaceResourceGroup'))}/workspaces/@{encodeURIComponent(parameters('workspaceId'))}/watchlists/@{encodeURIComponent(parameters('watchlistAlias'))}"
                         }
-                      },
-                      "method": "put",
-                      "body": {
-                        "displayName": "@{body('Get_Watchlist_Info')?['properties']?['watchlist']?['properties.displayName']}",
-                        "description": "@{body('Get_Watchlist_Info')?['properties']?['watchlist']?['properties.description']}",
-                        "itemsSearchKey": "@{body('Get_Watchlist_Info')?['properties']?['watchlistItemsSearchKey']}",
-                        "provider": "@{body('Get_Watchlist_Info')?['properties']?['watchlist']?['properties.provider']}",
-                        "rawContent": ""
-                      },
-                      "path": "/V2/Watchlists/subscriptions/@{encodeURIComponent(parameters('subscriptionId'))}/resourceGroups/@{encodeURIComponent(parameters('workspaceResourceGroup'))}/workspaces/@{encodeURIComponent(parameters('workspaceId'))}/watchlists/@{encodeURIComponent(parameters('watchlistAlias'))}"
+                    },
+                    "Wait_5_Minutes": {
+                        "runAfter": {
+                            "Delete_The_Watchlist": [
+                                "Succeeded"
+                            ]
+                        },
+                        "type": "Wait",
+                        "inputs": {
+                            "interval": {
+                                "count": 5,
+                                "unit": "Minute"
+                            }
+                        }
+                    },
+                    "Delete_The_Watchlist": {
+                        "runAfter": {
+                            "Create_CSV_table_for_raw_input": [
+                                "Succeeded"
+                            ]
+                        },
+                        "type": "ApiConnection",
+                        "inputs": {
+                            "host": {
+                                "connection": {
+                                    "name": "@parameters('$connections')['azuresentinel-1']['connectionId']"
+                                }
+                            },
+                            "method": "delete",
+                            "path": "/V2/Watchlists/subscriptions/@{encodeURIComponent(parameters('subscriptionId'))}/resourceGroups/@{encodeURIComponent(parameters('workspaceResourceGroup'))}/workspaces/@{encodeURIComponent(parameters('workspaceId'))}/watchlists/@{encodeURIComponent(parameters('watchlistAlias'))}"
+                        }
                     }
-                  }
-                }
-              }
+                },
+                "runAfter": {
+                    "Select_Data_Only": [
+                        "Succeeded"
+                    ]
+                },
+                "else": {
+                    "actions": {
+                        "Update_the_Watchlist_with_No_Data": {
+                            "runAfter": {
+                                "Delay_5_minutes": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "ApiConnection",
+                            "inputs": {
+                                "host": {
+                                    "connection": {
+                                        "name": "@parameters('$connections')['azuresentinel-1']['connectionId']"
+                                    }
+                                },
+                                "method": "put",
+                                "body": {
+                                    "displayName": "@{body('Get_Watchlist_Info')?['properties']?['watchlist']?['properties.displayName']}",
+                                    "description": "@{body('Get_Watchlist_Info')?['properties']?['watchlist']?['properties.description']}",
+                                    "itemsSearchKey": "@{body('Get_Watchlist_Info')?['properties']?['watchlistItemsSearchKey']}",
+                                    "provider": "@{body('Get_Watchlist_Info')?['properties']?['watchlist']?['properties.provider']}",
+                                    "rawContent": ""
+                                },
+                                "path": "/V2/Watchlists/subscriptions/@{encodeURIComponent(parameters('subscriptionId'))}/resourceGroups/@{encodeURIComponent(parameters('workspaceResourceGroup'))}/workspaces/@{encodeURIComponent(parameters('workspaceId'))}/watchlists/@{encodeURIComponent(parameters('watchlistAlias'))}"
+                            }
+                        },
+                        "Delay_5_minutes": {
+                            "runAfter": {
+                                "Delete_a_Watchlist": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "Wait",
+                            "inputs": {
+                                "interval": {
+                                    "count": 5,
+                                    "unit": "Minute"
+                                }
+                            }
+                        },
+                        "Delete_a_Watchlist": {
+                            "type": "ApiConnection",
+                            "inputs": {
+                                "host": {
+                                    "connection": {
+                                        "name": "@parameters('$connections')['azuresentinel-1']['connectionId']"
+                                    }
+                                },
+                                "method": "delete",
+                                "path": "/V2/Watchlists/subscriptions/@{encodeURIComponent(parameters('subscriptionId'))}/resourceGroups/@{encodeURIComponent(parameters('workspaceResourceGroup'))}/workspaces/@{encodeURIComponent(parameters('workspaceId'))}/watchlists/@{encodeURIComponent(parameters('watchlistAlias'))}"
+                            }
+                        }
+                    }
+                },
+                "expression": {
+                    "or": [
+                        {
+                            "equals": [
+                                "@empty(body('Select_Data_Only'))",
+                                false
+                            ]
+                        }
+                    ]
+                },
+                "type": "If"
+            },
+            "loop_on_results": {
+                "actions": {
+                    "Get_all_Watchlist_Items": {
+                        "type": "ApiConnection",
+                        "inputs": {
+                            "host": {
+                                "connection": {
+                                    "name": "@parameters('$connections')['azuresentinel-1']['connectionId']"
+                                }
+                            },
+                            "method": "get",
+                            "path": "/V2/Watchlists/subscriptions/@{encodeURIComponent(parameters('subscriptionId'))}/resourceGroups/@{encodeURIComponent(parameters('workspaceResourceGroup'))}/workspaces/@{encodeURIComponent(parameters('workspaceId'))}/watchlists/@{encodeURIComponent(parameters('watchlistAlias'))}/watchlistItems/",
+                            "queries": {
+                                "skipToken": "@{variables('skipToken')}"
+                            }
+                        }
+                    },
+                    "Union_Results": {
+                        "runAfter": {
+                            "Get_all_Watchlist_Items": [
+                                "Succeeded"
+                            ]
+                        },
+                        "type": "Compose",
+                        "inputs": "@union(variables('allResults'),body('Get_all_Watchlist_Items')?['properties']?['watchlistItems'])"
+                    },
+                    "Set_results_to_variable": {
+                        "runAfter": {
+                            "Union_Results": [
+                                "Succeeded"
+                            ]
+                        },
+                        "type": "SetVariable",
+                        "inputs": {
+                            "name": "allResults",
+                            "value": "@outputs('Union_Results')"
+                        }
+                    },
+                    "Check_if_skip_token_is_empty": {
+                        "actions": {
+                            "Set_skip_token": {
+                                "type": "SetVariable",
+                                "inputs": {
+                                    "name": "skipToken",
+                                    "value": "@body('Get_all_Watchlist_Items')?['properties']?['skipToken']"
+                                }
+                            }
+                        },
+                        "runAfter": {
+                            "Set_results_to_variable": [
+                                "Succeeded"
+                            ]
+                        },
+                        "else": {
+                            "actions": {
+                                "Set_skip_token_as_empty": {
+                                    "type": "SetVariable",
+                                    "inputs": {
+                                        "name": "skipToken",
+                                        "value": "@trim(' ')"
+                                    }
+                                }
+                            }
+                        },
+                        "expression": {
+                            "and": [
+                                {
+                                    "not": {
+                                        "equals": [
+                                            "@body('Get_all_Watchlist_Items')?['properties']?['skipToken']",
+                                            ""
+                                        ]
+                                    }
+                                }
+                            ]
+                        },
+                        "type": "If"
+                    }
+                },
+                "runAfter": {
+                    "Initialize_Variables": [
+                        "Succeeded"
+                    ]
+                },
+                "expression": "@equals(variables('skipToken'), trim(' '))",
+                "limit": {
+                    "count": 60,
+                    "timeout": "PT1H"
+                },
+                "type": "Until"
             }
-          },
+        },
           "outputs": {}
         },
         "parameters": {
