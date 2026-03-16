@@ -24,11 +24,12 @@ The watchlist is expected to have at least two columns:
 │ Initialize Cutoff   │──► utcNow() − retentionDays
 └─────────┬───────────┘
           ▼
-┌─────────────────────┐   ┌──────────────────────┐
-│ Get Watchlist Items  │   │ Get Watchlist Info    │  (parallel)
-│ (V2 connector)       │   │ (metadata for PUT)   │
-└─────────┬───────────┘   └──────────┬───────────┘
-          └──────────┬───────────────┘
+┌─────────────────────────┐   ┌──────────────────────┐
+│ Paginated Loop (Until)  │   │ Get Watchlist Info    │  (parallel)
+│ Get all items via       │   │ (metadata for PUT)   │
+│ skipToken pagination    │   │                      │
+└─────────┬───────────────┘   └──────────┬───────────┘
+          └──────────┬───────────────────┘
                      ▼
           ┌─────────────────────┐
           │ Filter: keep items  │──► Date > cutoffDate
@@ -81,7 +82,7 @@ The watchlist is expected to have at least two columns:
 | `location` | | Resource group location | Azure region |
 | `workspaceId` | ✅ | — | Log Analytics workspace ID (GUID) |
 | `workspaceResourceGroup` | ✅ | — | Resource group of the workspace |
-| `watchlistAlias` | | `ioc` | Alias of the target watchlist |
+| `watchlistAlias` | ✅ | — | Alias of the target watchlist |
 | `retentionDays` | | `60` | Items older than this many days are removed |
 
 ## What Gets Deployed
@@ -93,6 +94,8 @@ The watchlist is expected to have at least two columns:
 | Role Assignment | `Microsoft.Authorization/roleAssignments` | Grants **Microsoft Sentinel Contributor** on the workspace |
 
 ## Post-Deployment
+
+> **Important:** The Logic App is deployed in a **Disabled** state. After verifying the configuration and role assignment, enable it manually in the Azure portal or via CLI.
 
 After deployment, verify the Logic App's managed identity has the **Microsoft Sentinel Contributor** role on the workspace. The template assigns this automatically, but if the workspace is in a different subscription you may need to assign it manually.
 
@@ -113,3 +116,12 @@ The `managedIdentityPrincipalId` is available in the deployment outputs.
 - A **5-minute wait** is included between delete and recreate to allow the backend to fully process the deletion.
 - The **Date** column must be in `dd/MM/yy` format (e.g., `15/03/26` for March 15, 2026). The workflow parses this into ISO 8601 for comparison.
 - If **all items are stale**, the else branch deletes and recreates an empty watchlist to preserve the watchlist structure.
+- The item retrieval uses **pagination** (Until loop with `skipToken`) to handle large watchlists (up to 60 pages, 1-hour timeout).
+- The Logic App is deployed **Disabled** — enable it after verifying the managed identity role assignment.
+
+## Deployment Outputs
+
+| Output | Description |
+|---|---|
+| `logicAppName` | Name of the deployed Logic App |
+| `managedIdentityPrincipalId` | Principal ID of the Logic App's managed identity (use for manual role assignments) |
