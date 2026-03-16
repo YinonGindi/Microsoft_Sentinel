@@ -226,6 +226,7 @@
         "api": {
           "id": "[variables('monitorLogsManagedApiId')]"
         }
+      }
     },
     {
       "type": "Microsoft.Web/connections",
