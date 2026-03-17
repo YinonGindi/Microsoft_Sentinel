@@ -163,8 +163,6 @@
     ],
     "outputs": {
       "location": "[location()]",
-      "managedIdentityName": "[steps('identity').managedIdentityName]",
-      "managedIdentityResourceGroup": "[if(empty(steps('identity').managedIdentityResourceGroup.name), resourceGroup().name, steps('identity').managedIdentityResourceGroup.name)]",
       "logicAppName": "[steps('logicApp').logicAppName]",
       "automationAccountName": "[steps('automation').automationAccountName]",
       "automationAccountResourceGroup": "[if(empty(steps('automation').automationAccountResourceGroup.name), resourceGroup().name, steps('automation').automationAccountResourceGroup.name)]",
