@@ -125,6 +125,7 @@
         "[resourceId('Microsoft.Logic/workflows', parameters('logicAppName'))]"
       ],
       "properties": {
+        "expressionEvaluationOptions": { "scope": "outer" },
         "mode": "Incremental",
         "template": {
           "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
@@ -483,11 +484,7 @@
   "outputs": {
     "managedIdentityPrincipalId": {
       "type": "string",
-      "value": "[reference(resourceId('Microsoft.Logic/workflows', parameters('logicAppName')), '2019-05-01', 'full').identity.principalId"
-    },
-    "managedIdentityClientId": {
-      "type": "string",
-      "value": "[reference(variables('managedIdentityId')).clientId]"
+      "value": "[reference(resourceId('Microsoft.Logic/workflows', parameters('logicAppName')), '2019-05-01', 'full').identity.principalId]"
     },
     "logicAppId": {
       "type": "string",
