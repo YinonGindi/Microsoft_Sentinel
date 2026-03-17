@@ -45,35 +45,6 @@
         ]
       },
       {
-        "name": "identity",
-        "label": "Managed Identity",
-        "elements": [
-          {
-            "name": "managedIdentityName",
-            "type": "Microsoft.Common.TextBox",
-            "label": "Managed Identity Name",
-            "defaultValue": "ManagedIdentity-Sentinel",
-            "toolTip": "Name of the User-Assigned Managed Identity to create.",
-            "constraints": {
-              "required": true
-            }
-          },
-          {
-            "name": "managedIdentityResourceGroup",
-            "type": "Microsoft.Solutions.ResourceSelector",
-            "label": "Managed Identity Resource Group",
-            "toolTip": "Resource group for the managed identity (defaults to deployment RG).",
-            "resourceType": "Microsoft.Resources/resourceGroups",
-            "options": {
-              "filter": {
-                "subscription": "onBasics"
-              }
-            },
-            "visible": false
-          }
-        ]
-      },
-      {
         "name": "automation",
         "label": "Automation Account",
         "elements": [
