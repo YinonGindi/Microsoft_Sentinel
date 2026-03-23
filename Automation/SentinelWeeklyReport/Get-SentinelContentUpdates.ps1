@@ -99,7 +99,6 @@ if($UpdateNeeded){
     Export-ContentHubUpdatesToHtml -UpdateData $UpdateNeeded
 }
 else{
-    Write-Output @"
-        <p>Total Solutions Requiring Updates: 0</p>
-"@
+    $FullHtml= "<p>Total Solutions Requiring Updates: 0</p>"
+    Write-Output (@{FullHtml = [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($FullHtml));MiniHtml = [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($FullHtml))} | ConvertTo-Json -Compress)
 }
