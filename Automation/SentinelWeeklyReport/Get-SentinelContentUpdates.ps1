@@ -102,7 +102,7 @@ if($UpdateNeeded){
 }
 else{
     Write-Output @"
-    <h2>🔄 Microsoft Sentinel Content Hub Updates Report</h2>
+    <h2> 🔄 Microsoft Sentinel Content Hub Updates Report</h2>
         <p>Total Solutions Requiring Updates: 0</p>
 "@
 }
