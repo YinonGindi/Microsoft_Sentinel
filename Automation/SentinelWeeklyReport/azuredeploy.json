@@ -103,9 +103,10 @@
     }
   },
   "variables": {
-    "automationConnectionName": "azureautomation",
-    "monitorLogsConnectionName": "azuremonitorlogs",
-    "office365ConnectionName": "office365",
+    "prefix": "SentinelWeeklyReport-",
+    "automationConnectionName": "[concat(variables('prefix'),'azureautomation')]",
+    "monitorLogsConnectionName": "[concat(variables('prefix'),'azuremonitorlogs')]",
+    "office365ConnectionName": "[concat(variables('prefix'),'office365')]",
     "automationConnectionId": "[resourceId(parameters('connectionsResourceGroup'), 'Microsoft.Web/connections', variables('automationConnectionName'))]",
     "monitorLogsConnectionId": "[resourceId(parameters('connectionsResourceGroup'), 'Microsoft.Web/connections', variables('monitorLogsConnectionName'))]",
     "office365ConnectionId": "[resourceId(parameters('connectionsResourceGroup'), 'Microsoft.Web/connections', variables('office365ConnectionName'))]",
