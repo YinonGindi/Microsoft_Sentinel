@@ -114,13 +114,14 @@
     "monitorLogsManagedApiId": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', parameters('location'), '/managedApis/azuremonitorlogs')]",
     "office365ManagedApiId": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', parameters('location'), '/managedApis/office365')]",
     "sentinelReaderRoleId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'ab8e14d6-4a74-4a29-9ba8-549422addade')]",
+     "automationJobOperatorRoleId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '4fe576fe-1146-4730-92eb-48519fa6bf9f')]",
     "workspaceId": "[resourceId(parameters('sentinelResourceGroup'), 'Microsoft.OperationalInsights/workspaces', parameters('workspaceName'))]"
   },
   "resources": [
     {
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2022-09-01",
-      "name": "sentinelReaderRoleAssignment",
+      "name": "sentinelReportRoleAssignment",
       "resourceGroup": "[parameters('sentinelResourceGroup')]",
       "dependsOn": [
         "[resourceId('Microsoft.Logic/workflows', parameters('logicAppName'))]"
@@ -141,7 +142,19 @@
                 "principalId": "[reference(resourceId('Microsoft.Logic/workflows', parameters('logicAppName')), '2019-05-01', 'full').identity.principalId]",
                 "principalType": "ServicePrincipal"
               }
-            }
+            },
+             {
+     "type": "Microsoft.Authorization/roleAssignments",
+     "apiVersion": "2022-04-01",
+     "scope": "[concat('Microsoft.Automation/automationAccounts/', parameters('automationAccountName'))]",
+     "name": "[guid(resourceId('Microsoft.Automation/automationAccounts', parameters('automationAccountName')), resourceId('Microsoft.Logic/workflows', parameters('logicAppName')), variables('automationJobOperatorRoleId'))]",
+     "dependsOn": [],
+     "properties": {
+       "roleDefinitionId": "[variables('automationJobOperatorRoleId')]",
+       "principalId": "[reference(resourceId('Microsoft.Logic/workflows', parameters('logicAppName')), '2019-05-01', 'full').identity.principalId]",
+       "principalType": "ServicePrincipal"
+     }
+   }
           ]
         }
       }
@@ -466,9 +479,7 @@
                 "id": "[variables('monitorLogsManagedApiId')]",
                 "connectionId": "[variables('monitorLogsConnectionId')]",
                 "connectionName": "[variables('monitorLogsConnectionName')]",
-                "connectionProperties": {                  "authentication": {
-                    "type": "ManagedServiceIdentity"
-                  }}
+                "connectionProperties": {}
               },
               "office365": {
                 "id": "[variables('office365ManagedApiId')]",
