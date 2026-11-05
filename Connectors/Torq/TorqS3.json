@@ -1,0 +1,1044 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "workspace": {
+      "type": "string",
+      "metadata": {
+        "description": "Log Analytics workspace NAME"
+      }
+    },
+    "workspace-location": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().location]"
+    },
+    "filesAreGzip": {
+      "type": "bool",
+      "defaultValue": true
+    },
+    "roleArn": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Optional. If set together with queueUrl, the collector is created directly (no Connect button needed)."
+      }
+    },
+    "queueUrl": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Optional. SQS queue URL."
+      }
+    }
+  },
+  "variables": {
+    "workspaceResourceId": "[resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspace'))]",
+    "_solutionName": "Torq SOC Logs (AWS S3)",
+    "_solutionVersion": "1.0.0",
+    "_solutionAuthor": "Custom",
+    "_packageIcon": "amazon_web_services_Logo.svg",
+    "_solutionId": "custom.torqs3-solution",
+    "_uiConfigId1": "TorqS3Definition",
+    "dataConnectorVersionConnectorDefinition": "1.0.0",
+    "dataConnectorVersionConnections": "1.0.0",
+    "_dataConnectorContentIdConnectorDefinition": "TorqS3Definition",
+    "dataConnectorTemplateNameConnectorDefinition": "[concat(parameters('workspace'),'-dc-',uniquestring('TorqS3Definition'))]",
+    "_dataConnectorContentIdConnections": "TorqS3Connections",
+    "dataConnectorTemplateNameConnections": "[concat(parameters('workspace'),'-dc-',uniquestring('TorqS3Connections'))]",
+    "dcrName": "[concat(parameters('workspace'),'-torqs3-dcr')]"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Insights/dataCollectionEndpoints",
+      "apiVersion": "2022-06-01",
+      "name": "[parameters('workspace')]",
+      "location": "[parameters('workspace-location')]",
+      "properties": {
+        "networkAcls": {
+          "publicNetworkAccess": "Enabled"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.OperationalInsights/workspaces/tables",
+      "apiVersion": "2022-10-01",
+      "name": "[concat(parameters('workspace'),'/TorqS3Logs_CL')]",
+      "properties": {
+        "plan": "Analytics",
+        "schema": {
+          "name": "TorqS3Logs_CL",
+          "columns": [
+            {
+              "name": "TimeGenerated",
+              "type": "datetime"
+            },
+            {
+              "name": "RecordId",
+              "type": "string"
+            },
+            {
+              "name": "AccountId",
+              "type": "string"
+            },
+            {
+              "name": "CreatedAt",
+              "type": "datetime"
+            },
+            {
+              "name": "EventId",
+              "type": "string"
+            },
+            {
+              "name": "EventPrettyId",
+              "type": "string"
+            },
+            {
+              "name": "EventTimestamp",
+              "type": "datetime"
+            },
+            {
+              "name": "EventType",
+              "type": "string"
+            },
+            {
+              "name": "ScenarioId",
+              "type": "string"
+            },
+            {
+              "name": "Operation",
+              "type": "string"
+            },
+            {
+              "name": "TriggeredByKind",
+              "type": "string"
+            },
+            {
+              "name": "TriggeredByWorkflowId",
+              "type": "string"
+            },
+            {
+              "name": "CaseId",
+              "type": "string"
+            },
+            {
+              "name": "CaseTitle",
+              "type": "string"
+            },
+            {
+              "name": "CaseState",
+              "type": "string"
+            },
+            {
+              "name": "CasePreviousState",
+              "type": "string"
+            },
+            {
+              "name": "CaseSeverity",
+              "type": "string"
+            },
+            {
+              "name": "CaseCategory",
+              "type": "string"
+            },
+            {
+              "name": "CaseAssignee",
+              "type": "string"
+            },
+            {
+              "name": "CaseTags",
+              "type": "dynamic"
+            },
+            {
+              "name": "CaseResolutionReason",
+              "type": "string"
+            },
+            {
+              "name": "CaseResolutionDetails",
+              "type": "string"
+            },
+            {
+              "name": "IntegrationId",
+              "type": "string"
+            },
+            {
+              "name": "IntegrationTypeId",
+              "type": "string"
+            },
+            {
+              "name": "ParentPlaybookId",
+              "type": "string"
+            },
+            {
+              "name": "ParentPlaybookName",
+              "type": "string"
+            },
+            {
+              "name": "ExecutionId",
+              "type": "string"
+            },
+            {
+              "name": "ExecutionStatus",
+              "type": "string"
+            },
+            {
+              "name": "ExecutionStartedAt",
+              "type": "datetime"
+            },
+            {
+              "name": "PlaybookId",
+              "type": "string"
+            },
+            {
+              "name": "PlaybookName",
+              "type": "string"
+            },
+            {
+              "name": "EventBody",
+              "type": "dynamic"
+            },
+            {
+              "name": "Event",
+              "type": "dynamic"
+            },
+            {
+              "name": "Execution",
+              "type": "dynamic"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Insights/dataCollectionRules",
+      "apiVersion": "2022-06-01",
+      "name": "[variables('dcrName')]",
+      "location": "[parameters('workspace-location')]",
+      "properties": {
+        "dataCollectionEndpointId": "[resourceId('Microsoft.Insights/dataCollectionEndpoints', parameters('workspace'))]",
+        "streamDeclarations": {
+          "Custom-TorqS3LogsStream": {
+            "columns": [
+              {
+                "name": "id",
+                "type": "string"
+              },
+              {
+                "name": "event",
+                "type": "dynamic"
+              },
+              {
+                "name": "accountId",
+                "type": "string"
+              },
+              {
+                "name": "createdAt",
+                "type": "string"
+              },
+              {
+                "name": "execution",
+                "type": "dynamic"
+              }
+            ]
+          }
+        },
+        "destinations": {
+          "logAnalytics": [
+            {
+              "workspaceResourceId": "[variables('workspaceResourceId')]",
+              "name": "clv2ws1"
+            }
+          ]
+        },
+        "dataFlows": [
+          {
+            "streams": [
+              "Custom-TorqS3LogsStream"
+            ],
+            "destinations": [
+              "clv2ws1"
+            ],
+            "transformKql": "source | extend CreatedAt = todatetime(createdAt), EventTimestamp = todatetime(event['timestamp']) | extend TimeGenerated = iff(isnotempty(EventTimestamp), EventTimestamp, iff(isnotempty(CreatedAt), CreatedAt, now())) | extend EventType = iff(isnotempty(event['typeInternal']), 'Internal', iff(isnotempty(event['typeIntegration']), 'Integration', iff(isnotempty(event['typeNested']), 'Nested', 'Other'))) | project TimeGenerated, RecordId = tostring(id), AccountId = tostring(accountId), CreatedAt, EventId = tostring(event['id']), EventPrettyId = tostring(event['prettyId']), EventTimestamp, EventType, ScenarioId = tostring(event['typeInternal']['scenarioId']), Operation = tostring(event['body']['operation']), TriggeredByKind = tostring(event['body']['triggered_by']['kind']), TriggeredByWorkflowId = tostring(event['body']['triggered_by']['workflow']['id']), CaseId = tostring(event['body']['cases']['current']['id']), CaseTitle = tostring(event['body']['cases']['current']['title']), CaseState = tostring(event['body']['cases']['current']['state']['value']), CasePreviousState = tostring(event['body']['cases']['previous']['state']['value']), CaseSeverity = tostring(event['body']['cases']['current']['severity']['value']), CaseCategory = tostring(event['body']['cases']['current']['category']), CaseAssignee = tostring(event['body']['cases']['current']['assignee']), CaseTags = event['body']['cases']['current']['tags'], CaseResolutionReason = tostring(event['body']['cases']['current']['resolution_summary']['reason']), CaseResolutionDetails = tostring(event['body']['cases']['current']['resolution_summary']['details']), IntegrationId = tostring(event['typeIntegration']['integrationId']), IntegrationTypeId = tostring(event['typeIntegration']['integrationTypeId']), ParentPlaybookId = tostring(event['typeNested']['parentPlaybookId']), ParentPlaybookName = tostring(event['typeNested']['parentPlaybookName']), ExecutionId = tostring(execution['id']), ExecutionStatus = tostring(execution['status']), ExecutionStartedAt = todatetime(execution['startedAt']), PlaybookId = tostring(execution['playbookId']), PlaybookName = tostring(execution['playbookName']), EventBody = event['body'], Event = event, Execution = execution",
+            "outputStream": "Custom-TorqS3Logs_CL"
+          }
+        ]
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Insights/dataCollectionEndpoints', parameters('workspace'))]",
+        "[resourceId('Microsoft.OperationalInsights/workspaces/tables', parameters('workspace'), 'TorqS3Logs_CL')]"
+      ]
+    },
+    {
+      "type": "Microsoft.OperationalInsights/workspaces/providers/contentPackages",
+      "apiVersion": "2023-04-01-preview",
+      "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/', variables('_solutionId'))]",
+      "location": "[parameters('workspace-location')]",
+      "properties": {
+        "version": "[variables('_solutionVersion')]",
+        "kind": "Solution",
+        "contentSchemaVersion": "3.0.0",
+        "contentId": "[variables('_solutionId')]",
+        "packageId": "[variables('_solutionId')]",
+        "contentKind": "Solution",
+        "displayName": "[variables('_solutionName')]",
+        "publisherDisplayName": "[variables('_solutionAuthor')]",
+        "descriptionHtml": "Torq SOC logs from AWS S3",
+        "icon": "[variables('_packageIcon')]",
+        "contentProductId": "[concat(take(variables('_solutionId'), 50),'-','sl','-', uniqueString(concat(variables('_solutionId'),'-','Solution','-',variables('_solutionId'),'-', variables('_solutionVersion'))))]",
+        "source": {
+          "kind": "Solution",
+          "name": "[variables('_solutionName')]",
+          "sourceId": "[variables('_solutionId')]"
+        },
+        "author": {
+          "name": "[variables('_solutionAuthor')]"
+        },
+        "support": {
+          "name": "[variables('_solutionAuthor')]",
+          "tier": "Partner",
+          "link": "https://support.microsoft.com"
+        },
+        "firstPublishDate": "2026-11-03",
+        "providers": [
+          "[variables('_solutionAuthor')]"
+        ],
+        "categories": {
+          "domains": [
+            "Security - Cloud Security"
+          ]
+        },
+        "dependencies": {
+          "operator": "AND",
+          "criteria": [
+            {
+              "kind": "DataConnector",
+              "contentId": "[variables('_dataConnectorContentIdConnections')]",
+              "version": "[variables('dataConnectorVersionConnections')]"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "type": "Microsoft.OperationalInsights/workspaces/providers/contentTemplates",
+      "apiVersion": "2023-04-01-preview",
+      "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/', variables('dataConnectorTemplateNameConnectorDefinition'), variables('dataConnectorVersionConnectorDefinition'))]",
+      "location": "[parameters('workspace-location')]",
+      "dependsOn": [
+        "[extensionResourceId(variables('workspaceResourceId'), 'Microsoft.SecurityInsights/contentPackages', variables('_solutionId'))]"
+      ],
+      "properties": {
+        "contentId": "[variables('_dataConnectorContentIdConnectorDefinition')]",
+        "displayName": "[variables('_solutionName')]",
+        "contentKind": "DataConnector",
+        "mainTemplate": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "[variables('dataConnectorVersionConnectorDefinition')]",
+          "parameters": {},
+          "variables": {},
+          "resources": [
+            {
+              "type": "Microsoft.OperationalInsights/workspaces/providers/dataConnectorDefinitions",
+              "apiVersion": "2022-09-01-preview",
+              "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/',variables('_dataConnectorContentIdConnectorDefinition'))]",
+              "location": "[parameters('workspace-location')]",
+              "kind": "Customizable",
+              "properties": {
+                "connectorUiConfig": {
+                  "id": "[variables('_uiConfigId1')]",
+                  "title": "Torq SOC Logs (AWS S3)",
+                  "publisher": "Custom",
+                  "logo": "[variables('_packageIcon')]",
+                  "descriptionMarkdown": "Ingests Torq SOC activity logs from an AWS S3 bucket (via SQS notifications) into **TorqS3Logs_CL**.",
+                  "graphQueriesTableName": "TorqS3Logs_CL",
+                  "graphQueries": [
+                    {
+                      "metricName": "Total events received",
+                      "legend": "Torq logs",
+                      "baseQuery": "{{graphQueriesTableName}}"
+                    }
+                  ],
+                  "sampleQueries": [
+                    {
+                      "description": "Latest events",
+                      "query": "{{graphQueriesTableName}} | take 10"
+                    }
+                  ],
+                  "dataTypes": [
+                    {
+                      "name": "{{graphQueriesTableName}}",
+                      "lastDataReceivedQuery": "{{graphQueriesTableName}} | summarize Time = max(TimeGenerated) | where isnotempty(Time)"
+                    }
+                  ],
+                  "connectivityCriteria": [
+                    {
+                      "type": "HasDataConnectors"
+                    }
+                  ],
+                  "isConnectivityCriteriasMatchSome": false,
+                  "availability": {
+                    "status": 1,
+                    "isPreview": true
+                  },
+                  "permissions": {
+                    "resourceProvider": [
+                      {
+                        "provider": "Microsoft.OperationalInsights/workspaces",
+                        "permissionsDisplayText": "Read and Write permissions are required.",
+                        "providerDisplayName": "Workspace",
+                        "scope": "Workspace",
+                        "requiredPermissions": {
+                          "read": true,
+                          "write": true,
+                          "delete": true,
+                          "action": false
+                        }
+                      }
+                    ]
+                  },
+                  "instructionSteps": [
+                    {
+                      "instructions": [
+                        {
+                          "type": "Markdown",
+                          "parameters": {
+                            "content": "#### 1. AWS setup \n Sentinel OIDC role (name starts with OIDC_) with s3:GetObject on the bucket and SQS receive/delete/visibility permissions on the queue."
+                          }
+                        },
+                        {
+                          "type": "Markdown",
+                          "parameters": {
+                            "content": "#### 2. Connect new collectors \n Click 'Add new collector', fill in the details and click 'Connect'."
+                          }
+                        },
+                        {
+                          "type": "DataConnectorsGrid",
+                          "parameters": {
+                            "mapping": [
+                              {
+                                "columnValue": "properties.roleArn",
+                                "columnName": "Role ARN"
+                              },
+                              {
+                                "columnValue": "properties.sqsUrls[0]",
+                                "columnName": "Queue URL"
+                              }
+                            ],
+                            "menuItems": [
+                              "DeleteConnector"
+                            ]
+                          }
+                        },
+                        {
+                          "type": "ContextPane",
+                          "parameters": {
+                            "contextPaneType": "DataConnectorsContextPane",
+                            "title": "Add new collector",
+                            "subtitle": "AWS S3 connector",
+                            "label": "Add new collector",
+                            "instructionSteps": [
+                              {
+                                "title": "Account details",
+                                "instructions": [
+                                  {
+                                    "type": "Textbox",
+                                    "parameters": {
+                                      "label": "Role ARN",
+                                      "type": "text",
+                                      "name": "roleArn",
+                                      "validations": {
+                                        "required": true
+                                      }
+                                    }
+                                  },
+                                  {
+                                    "type": "Textbox",
+                                    "parameters": {
+                                      "label": "Queue URL",
+                                      "type": "text",
+                                      "name": "queueUrl",
+                                      "validations": {
+                                        "required": true
+                                      }
+                                    }
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "type": "Microsoft.OperationalInsights/workspaces/providers/metadata",
+              "apiVersion": "2022-01-01-preview",
+              "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/',concat('DataConnector-', variables('_dataConnectorContentIdConnectorDefinition')))]",
+              "properties": {
+                "parentId": "[extensionResourceId(variables('workspaceResourceId'), 'Microsoft.SecurityInsights/dataConnectorDefinitions', variables('_dataConnectorContentIdConnectorDefinition'))]",
+                "contentId": "[variables('_dataConnectorContentIdConnectorDefinition')]",
+                "kind": "DataConnector",
+                "version": "[variables('dataConnectorVersionConnectorDefinition')]",
+                "source": {
+                  "kind": "Solution",
+                  "name": "[variables('_solutionName')]",
+                  "sourceId": "[variables('_solutionId')]"
+                },
+                "author": {
+                  "name": "[variables('_solutionAuthor')]"
+                },
+                "support": {
+                  "name": "[variables('_solutionAuthor')]",
+                  "tier": "Partner",
+                  "link": "https://support.microsoft.com"
+                },
+                "dependencies": {
+                  "criteria": [
+                    {
+                      "version": "[variables('dataConnectorVersionConnections')]",
+                      "contentId": "[variables('_dataConnectorContentIdConnections')]",
+                      "kind": "ResourcesDataConnector"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "type": "Microsoft.Insights/dataCollectionRules",
+              "apiVersion": "2022-06-01",
+              "name": "[variables('dcrName')]",
+              "location": "[parameters('workspace-location')]",
+              "properties": {
+                "dataCollectionEndpointId": "[resourceId('Microsoft.Insights/dataCollectionEndpoints', parameters('workspace'))]",
+                "streamDeclarations": {
+                  "Custom-TorqS3LogsStream": {
+                    "columns": [
+                      {
+                        "name": "id",
+                        "type": "string"
+                      },
+                      {
+                        "name": "event",
+                        "type": "dynamic"
+                      },
+                      {
+                        "name": "accountId",
+                        "type": "string"
+                      },
+                      {
+                        "name": "createdAt",
+                        "type": "string"
+                      },
+                      {
+                        "name": "execution",
+                        "type": "dynamic"
+                      }
+                    ]
+                  }
+                },
+                "destinations": {
+                  "logAnalytics": [
+                    {
+                      "workspaceResourceId": "[variables('workspaceResourceId')]",
+                      "name": "clv2ws1"
+                    }
+                  ]
+                },
+                "dataFlows": [
+                  {
+                    "streams": [
+                      "Custom-TorqS3LogsStream"
+                    ],
+                    "destinations": [
+                      "clv2ws1"
+                    ],
+                    "transformKql": "source | extend CreatedAt = todatetime(createdAt), EventTimestamp = todatetime(event['timestamp']) | extend TimeGenerated = iff(isnotempty(EventTimestamp), EventTimestamp, iff(isnotempty(CreatedAt), CreatedAt, now())) | extend EventType = iff(isnotempty(event['typeInternal']), 'Internal', iff(isnotempty(event['typeIntegration']), 'Integration', iff(isnotempty(event['typeNested']), 'Nested', 'Other'))) | project TimeGenerated, RecordId = tostring(id), AccountId = tostring(accountId), CreatedAt, EventId = tostring(event['id']), EventPrettyId = tostring(event['prettyId']), EventTimestamp, EventType, ScenarioId = tostring(event['typeInternal']['scenarioId']), Operation = tostring(event['body']['operation']), TriggeredByKind = tostring(event['body']['triggered_by']['kind']), TriggeredByWorkflowId = tostring(event['body']['triggered_by']['workflow']['id']), CaseId = tostring(event['body']['cases']['current']['id']), CaseTitle = tostring(event['body']['cases']['current']['title']), CaseState = tostring(event['body']['cases']['current']['state']['value']), CasePreviousState = tostring(event['body']['cases']['previous']['state']['value']), CaseSeverity = tostring(event['body']['cases']['current']['severity']['value']), CaseCategory = tostring(event['body']['cases']['current']['category']), CaseAssignee = tostring(event['body']['cases']['current']['assignee']), CaseTags = event['body']['cases']['current']['tags'], CaseResolutionReason = tostring(event['body']['cases']['current']['resolution_summary']['reason']), CaseResolutionDetails = tostring(event['body']['cases']['current']['resolution_summary']['details']), IntegrationId = tostring(event['typeIntegration']['integrationId']), IntegrationTypeId = tostring(event['typeIntegration']['integrationTypeId']), ParentPlaybookId = tostring(event['typeNested']['parentPlaybookId']), ParentPlaybookName = tostring(event['typeNested']['parentPlaybookName']), ExecutionId = tostring(execution['id']), ExecutionStatus = tostring(execution['status']), ExecutionStartedAt = todatetime(execution['startedAt']), PlaybookId = tostring(execution['playbookId']), PlaybookName = tostring(execution['playbookName']), EventBody = event['body'], Event = event, Execution = execution",
+                    "outputStream": "Custom-TorqS3Logs_CL"
+                  }
+                ]
+              }
+            },
+            {
+              "type": "Microsoft.OperationalInsights/workspaces/tables",
+              "apiVersion": "2022-10-01",
+              "name": "[concat(parameters('workspace'),'/TorqS3Logs_CL')]",
+              "properties": {
+                "plan": "Analytics",
+                "schema": {
+                  "name": "TorqS3Logs_CL",
+                  "columns": [
+                    {
+                      "name": "TimeGenerated",
+                      "type": "datetime"
+                    },
+                    {
+                      "name": "RecordId",
+                      "type": "string"
+                    },
+                    {
+                      "name": "AccountId",
+                      "type": "string"
+                    },
+                    {
+                      "name": "CreatedAt",
+                      "type": "datetime"
+                    },
+                    {
+                      "name": "EventId",
+                      "type": "string"
+                    },
+                    {
+                      "name": "EventPrettyId",
+                      "type": "string"
+                    },
+                    {
+                      "name": "EventTimestamp",
+                      "type": "datetime"
+                    },
+                    {
+                      "name": "EventType",
+                      "type": "string"
+                    },
+                    {
+                      "name": "ScenarioId",
+                      "type": "string"
+                    },
+                    {
+                      "name": "Operation",
+                      "type": "string"
+                    },
+                    {
+                      "name": "TriggeredByKind",
+                      "type": "string"
+                    },
+                    {
+                      "name": "TriggeredByWorkflowId",
+                      "type": "string"
+                    },
+                    {
+                      "name": "CaseId",
+                      "type": "string"
+                    },
+                    {
+                      "name": "CaseTitle",
+                      "type": "string"
+                    },
+                    {
+                      "name": "CaseState",
+                      "type": "string"
+                    },
+                    {
+                      "name": "CasePreviousState",
+                      "type": "string"
+                    },
+                    {
+                      "name": "CaseSeverity",
+                      "type": "string"
+                    },
+                    {
+                      "name": "CaseCategory",
+                      "type": "string"
+                    },
+                    {
+                      "name": "CaseAssignee",
+                      "type": "string"
+                    },
+                    {
+                      "name": "CaseTags",
+                      "type": "dynamic"
+                    },
+                    {
+                      "name": "CaseResolutionReason",
+                      "type": "string"
+                    },
+                    {
+                      "name": "CaseResolutionDetails",
+                      "type": "string"
+                    },
+                    {
+                      "name": "IntegrationId",
+                      "type": "string"
+                    },
+                    {
+                      "name": "IntegrationTypeId",
+                      "type": "string"
+                    },
+                    {
+                      "name": "ParentPlaybookId",
+                      "type": "string"
+                    },
+                    {
+                      "name": "ParentPlaybookName",
+                      "type": "string"
+                    },
+                    {
+                      "name": "ExecutionId",
+                      "type": "string"
+                    },
+                    {
+                      "name": "ExecutionStatus",
+                      "type": "string"
+                    },
+                    {
+                      "name": "ExecutionStartedAt",
+                      "type": "datetime"
+                    },
+                    {
+                      "name": "PlaybookId",
+                      "type": "string"
+                    },
+                    {
+                      "name": "PlaybookName",
+                      "type": "string"
+                    },
+                    {
+                      "name": "EventBody",
+                      "type": "dynamic"
+                    },
+                    {
+                      "name": "Event",
+                      "type": "dynamic"
+                    },
+                    {
+                      "name": "Execution",
+                      "type": "dynamic"
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        "packageKind": "Solution",
+        "packageVersion": "[variables('_solutionVersion')]",
+        "packageName": "[variables('_solutionName')]",
+        "packageId": "[variables('_solutionId')]",
+        "contentSchemaVersion": "3.0.0",
+        "version": "[variables('dataConnectorVersionConnectorDefinition')]",
+        "contentProductId": "[concat(take(variables('_solutionId'), 50),'-','dc','-', uniqueString(concat(variables('_solutionId'),'-','DataConnector','-',variables('_dataConnectorContentIdConnectorDefinition'),'-', variables('dataConnectorVersionConnectorDefinition'))))]",
+        "id": "[concat(take(variables('_solutionId'), 50),'-','dc','-', uniqueString(concat(variables('_solutionId'),'-','DataConnector','-',variables('_dataConnectorContentIdConnectorDefinition'),'-', variables('dataConnectorVersionConnectorDefinition'))))]"
+      }
+    },
+    {
+      "type": "Microsoft.OperationalInsights/workspaces/providers/dataConnectorDefinitions",
+      "apiVersion": "2022-09-01-preview",
+      "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/',variables('_dataConnectorContentIdConnectorDefinition'))]",
+      "location": "[parameters('workspace-location')]",
+      "kind": "Customizable",
+      "properties": {
+        "connectorUiConfig": {
+          "id": "[variables('_uiConfigId1')]",
+          "title": "Torq SOC Logs (AWS S3)",
+          "publisher": "Custom",
+          "logo": "[variables('_packageIcon')]",
+          "descriptionMarkdown": "Ingests Torq SOC activity logs from an AWS S3 bucket (via SQS notifications) into **TorqS3Logs_CL**.",
+          "graphQueriesTableName": "TorqS3Logs_CL",
+          "graphQueries": [
+            {
+              "metricName": "Total events received",
+              "legend": "Torq logs",
+              "baseQuery": "{{graphQueriesTableName}}"
+            }
+          ],
+          "sampleQueries": [
+            {
+              "description": "Latest events",
+              "query": "{{graphQueriesTableName}} | take 10"
+            }
+          ],
+          "dataTypes": [
+            {
+              "name": "{{graphQueriesTableName}}",
+              "lastDataReceivedQuery": "{{graphQueriesTableName}} | summarize Time = max(TimeGenerated) | where isnotempty(Time)"
+            }
+          ],
+          "connectivityCriteria": [
+            {
+              "type": "HasDataConnectors"
+            }
+          ],
+          "isConnectivityCriteriasMatchSome": false,
+          "availability": {
+            "status": 1,
+            "isPreview": true
+          },
+          "permissions": {
+            "resourceProvider": [
+              {
+                "provider": "Microsoft.OperationalInsights/workspaces",
+                "permissionsDisplayText": "Read and Write permissions are required.",
+                "providerDisplayName": "Workspace",
+                "scope": "Workspace",
+                "requiredPermissions": {
+                  "read": true,
+                  "write": true,
+                  "delete": true,
+                  "action": false
+                }
+              }
+            ]
+          },
+          "instructionSteps": [
+            {
+              "instructions": [
+                {
+                  "type": "Markdown",
+                  "parameters": {
+                    "content": "#### 1. AWS setup \n Sentinel OIDC role (name starts with OIDC_) with s3:GetObject on the bucket and SQS receive/delete/visibility permissions on the queue."
+                  }
+                },
+                {
+                  "type": "Markdown",
+                  "parameters": {
+                    "content": "#### 2. Connect new collectors \n Click 'Add new collector', fill in the details and click 'Connect'."
+                  }
+                },
+                {
+                  "type": "DataConnectorsGrid",
+                  "parameters": {
+                    "mapping": [
+                      {
+                        "columnValue": "properties.roleArn",
+                        "columnName": "Role ARN"
+                      },
+                      {
+                        "columnValue": "properties.sqsUrls[0]",
+                        "columnName": "Queue URL"
+                      }
+                    ],
+                    "menuItems": [
+                      "DeleteConnector"
+                    ]
+                  }
+                },
+                {
+                  "type": "ContextPane",
+                  "parameters": {
+                    "contextPaneType": "DataConnectorsContextPane",
+                    "title": "Add new collector",
+                    "subtitle": "AWS S3 connector",
+                    "label": "Add new collector",
+                    "instructionSteps": [
+                      {
+                        "title": "Account details",
+                        "instructions": [
+                          {
+                            "type": "Textbox",
+                            "parameters": {
+                              "label": "Role ARN",
+                              "type": "text",
+                              "name": "roleArn",
+                              "validations": {
+                                "required": true
+                              }
+                            }
+                          },
+                          {
+                            "type": "Textbox",
+                            "parameters": {
+                              "label": "Queue URL",
+                              "type": "text",
+                              "name": "queueUrl",
+                              "validations": {
+                                "required": true
+                              }
+                            }
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "type": "Microsoft.OperationalInsights/workspaces/providers/metadata",
+      "apiVersion": "2022-01-01-preview",
+      "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/',concat('DataConnector-', variables('_dataConnectorContentIdConnectorDefinition')))]",
+      "properties": {
+        "parentId": "[extensionResourceId(variables('workspaceResourceId'), 'Microsoft.SecurityInsights/dataConnectorDefinitions', variables('_dataConnectorContentIdConnectorDefinition'))]",
+        "contentId": "[variables('_dataConnectorContentIdConnectorDefinition')]",
+        "kind": "DataConnector",
+        "version": "[variables('dataConnectorVersionConnectorDefinition')]",
+        "source": {
+          "kind": "Solution",
+          "name": "[variables('_solutionName')]",
+          "sourceId": "[variables('_solutionId')]"
+        },
+        "author": {
+          "name": "[variables('_solutionAuthor')]"
+        },
+        "support": {
+          "name": "[variables('_solutionAuthor')]",
+          "tier": "Partner",
+          "link": "https://support.microsoft.com"
+        },
+        "dependencies": {
+          "criteria": [
+            {
+              "version": "[variables('dataConnectorVersionConnections')]",
+              "contentId": "[variables('_dataConnectorContentIdConnections')]",
+              "kind": "ResourcesDataConnector"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "type": "Microsoft.OperationalInsights/workspaces/providers/contentTemplates",
+      "apiVersion": "2023-04-01-preview",
+      "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/', variables('dataConnectorTemplateNameConnections'), variables('dataConnectorVersionConnections'))]",
+      "location": "[parameters('workspace-location')]",
+      "dependsOn": [
+        "[extensionResourceId(variables('workspaceResourceId'), 'Microsoft.SecurityInsights/contentPackages', variables('_solutionId'))]"
+      ],
+      "properties": {
+        "contentId": "[variables('_dataConnectorContentIdConnections')]",
+        "displayName": "[variables('_solutionName')]",
+        "contentKind": "ResourcesDataConnector",
+        "mainTemplate": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "[variables('dataConnectorVersionConnections')]",
+          "parameters": {
+            "roleArn": {
+              "type": "string",
+              "minLength": 1
+            },
+            "queueUrl": {
+              "type": "string",
+              "minLength": 3
+            },
+            "connectorDefinitionName": {
+              "type": "string",
+              "defaultValue": "connectorDefinitionName",
+              "minLength": 1
+            },
+            "workspace": {
+              "type": "string",
+              "defaultValue": "[parameters('workspace')]"
+            },
+            "guidValue": {
+              "type": "string",
+              "defaultValue": "[[newGuid()]"
+            },
+            "dcrConfig": {
+              "type": "object",
+              "defaultValue": {
+                "dataCollectionEndpoint": "data collection Endpoint",
+                "dataCollectionRuleImmutableId": "data collection rule immutableId"
+              }
+            }
+          },
+          "variables": {
+            "_dataConnectorContentIdConnections": "[variables('_dataConnectorContentIdConnections')]"
+          },
+          "resources": [
+            {
+              "type": "Microsoft.OperationalInsights/workspaces/providers/metadata",
+              "apiVersion": "2022-01-01-preview",
+              "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/',concat('DataConnector-', variables('_dataConnectorContentIdConnections')))]",
+              "properties": {
+                "parentId": "[extensionResourceId(variables('workspaceResourceId'), 'Microsoft.SecurityInsights/dataConnectors', variables('_dataConnectorContentIdConnections'))]",
+                "contentId": "[variables('_dataConnectorContentIdConnections')]",
+                "kind": "ResourcesDataConnector",
+                "version": "[variables('dataConnectorVersionConnections')]",
+                "source": {
+                  "kind": "Solution",
+                  "name": "[variables('_solutionName')]",
+                  "sourceId": "[variables('_solutionId')]"
+                },
+                "author": {
+                  "name": "[variables('_solutionAuthor')]"
+                },
+                "support": {
+                  "name": "[variables('_solutionAuthor')]",
+                  "tier": "Partner",
+                  "link": "https://support.microsoft.com"
+                }
+              }
+            },
+            {
+              "type": "Microsoft.OperationalInsights/workspaces/providers/dataConnectors",
+              "apiVersion": "2022-12-01-preview",
+              "name": "[[concat(parameters('workspace'),'/Microsoft.SecurityInsights/','TorqS3-',parameters('guidValue'))]",
+              "location": "[parameters('workspace-location')]",
+              "kind": "AmazonWebServicesS3",
+              "properties": {
+                "connectorDefinitionName": "[[parameters('connectorDefinitionName')]",
+                "dataTypes": {
+                  "logs": {
+                    "state": "enabled"
+                  }
+                },
+                "dcrConfig": {
+                  "streamName": "Custom-TorqS3LogsStream",
+                  "dataCollectionEndpoint": "[[parameters('dcrConfig').dataCollectionEndpoint]",
+                  "dataCollectionRuleImmutableId": "[[parameters('dcrConfig').dataCollectionRuleImmutableId]"
+                },
+                "destinationTable": "TorqS3Logs_CL",
+                "dataFormat": {
+                  "Format": "Json",
+                  "IsCompressed": "[parameters('filesAreGzip')]",
+                  "compressType": "Gzip"
+                },
+                "roleArn": "[[parameters('roleArn')]",
+                "sqsUrls": [
+                  "[[parameters('queueUrl')]"
+                ]
+              }
+            }
+          ]
+        },
+        "packageKind": "Solution",
+        "packageVersion": "[variables('_solutionVersion')]",
+        "packageName": "[variables('_solutionName')]",
+        "packageId": "[variables('_solutionId')]",
+        "contentSchemaVersion": "3.0.0",
+        "version": "[variables('dataConnectorVersionConnections')]",
+        "contentProductId": "[concat(take(variables('_solutionId'), 50),'-','rdc','-', uniqueString(concat(variables('_solutionId'),'-','ResourcesDataConnector','-',variables('_dataConnectorContentIdConnections'),'-', variables('dataConnectorVersionConnections'))))]",
+        "id": "[concat(take(variables('_solutionId'), 50),'-','rdc','-', uniqueString(concat(variables('_solutionId'),'-','ResourcesDataConnector','-',variables('_dataConnectorContentIdConnections'),'-', variables('dataConnectorVersionConnections'))))]"
+      }
+    },
+    {
+      "condition": "[and(not(empty(parameters('roleArn'))), not(empty(parameters('queueUrl'))))]",
+      "type": "Microsoft.OperationalInsights/workspaces/providers/dataConnectors",
+      "apiVersion": "2022-12-01-preview",
+      "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/TorqS3-direct')]",
+      "location": "[parameters('workspace-location')]",
+      "kind": "AmazonWebServicesS3",
+      "dependsOn": [
+        "[resourceId('Microsoft.Insights/dataCollectionRules', variables('dcrName'))]",
+        "[extensionResourceId(variables('workspaceResourceId'), 'Microsoft.SecurityInsights/dataConnectorDefinitions', variables('_dataConnectorContentIdConnectorDefinition'))]"
+      ],
+      "properties": {
+        "connectorDefinitionName": "[variables('_dataConnectorContentIdConnectorDefinition')]",
+        "dataTypes": {
+          "logs": {
+            "state": "enabled"
+          }
+        },
+        "dcrConfig": {
+          "streamName": "Custom-TorqS3LogsStream",
+          "dataCollectionEndpoint": "[reference(resourceId('Microsoft.Insights/dataCollectionEndpoints', parameters('workspace')), '2022-06-01').logsIngestion.endpoint]",
+          "dataCollectionRuleImmutableId": "[reference(resourceId('Microsoft.Insights/dataCollectionRules', variables('dcrName')), '2022-06-01').immutableId]"
+        },
+        "destinationTable": "TorqS3Logs_CL",
+        "dataFormat": {
+          "Format": "Json",
+          "IsCompressed": "[parameters('filesAreGzip')]",
+          "compressType": "Gzip"
+        },
+        "roleArn": "[parameters('roleArn')]",
+        "sqsUrls": [
+          "[parameters('queueUrl')]"
+        ]
+      }
+    }
+  ]
+}
