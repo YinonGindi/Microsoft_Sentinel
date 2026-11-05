@@ -1,0 +1,880 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "location": {
+            "defaultValue": "[resourceGroup().location]",
+            "minLength": 1,
+            "type": "String",
+            "metadata": {
+                "description": "Not used, but needed to pass arm-ttk test `Location-Should-Not-Be-Hardcoded`.  We instead use the `workspace-location` which is derived from the LA workspace"
+            }
+        },
+        "workspace-location": {
+            "defaultValue": "",
+            "type": "String",
+            "metadata": {
+                "description": "[concat('Region to deploy solution resources -- separate from location selection',parameters('location'))]"
+            }
+        },
+        "workspace": {
+            "defaultValue": "",
+            "type": "String",
+            "metadata": {
+                "description": "Workspace name for Log Analytics where Microsoft Sentinel is setup"
+            }
+        },
+        "resourceGroupName": {
+            "defaultValue": "[resourceGroup().name]",
+            "type": "String",
+            "metadata": {
+                "description": "resource group name where Microsoft Sentinel is setup"
+            }
+        },
+        "subscription": {
+            "defaultValue": "[last(split(subscription().id, '/'))]",
+            "type": "String",
+            "metadata": {
+                "description": "subscription id where Microsoft Sentinel is setup"
+            }
+        }
+    },
+    "variables": {
+        "email": "support@ironscales.com",
+        "_email": "[variables('email')]",
+        "_solutionName": "IRONSCALES",
+        "_solutionVersion": "3.0.0",
+        "solutionId": "IRONSCALES.azure-sentinel-solution-IRONSCALES",
+        "_solutionId": "[variables('solutionId')]",
+        "workspaceResourceId": "[resourceId('microsoft.OperationalInsights/Workspaces', parameters('workspace'))]",
+        "dataConnectorCCPVersion": "3.0.0",
+        "_dataConnectorContentIdConnectorDefinition1": "IRONSCALESIncidents",
+        "dataConnectorTemplateNameConnectorDefinition1": "[concat(parameters('workspace'),'-dc-',uniquestring(variables('_dataConnectorContentIdConnectorDefinition1')))]",
+        "_dataConnectorContentIdConnections1": "IRONSCALESIncidentsConnections",
+        "dataConnectorTemplateNameConnections1": "[concat(parameters('workspace'),'-dc-',uniquestring(variables('_dataConnectorContentIdConnections1')))]",
+        "dataCollectionEndpointId1": "[concat('/subscriptions/',parameters('subscription'),'/resourceGroups/',parameters('resourceGroupName'),'/providers/Microsoft.Insights/dataCollectionEndpoints/',parameters('workspace'))]",
+        "blanks": "[replace('b', 'b', '')]",
+        "_solutioncontentProductId": "[concat(take(variables('_solutionId'),50),'-','sl','-', uniqueString(concat(variables('_solutionId'),'-','Solution','-',variables('_solutionId'),'-', variables('_solutionVersion'))))]"
+    },
+    "resources": [
+        {
+            "type": "Microsoft.OperationalInsights/workspaces/providers/contentTemplates",
+            "apiVersion": "2023-04-01-preview",
+            "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/', variables('dataConnectorTemplateNameConnectorDefinition1'), variables('dataConnectorCCPVersion'))]",
+            "location": "[parameters('workspace-location')]",
+            "dependsOn": [
+                "[extensionResourceId(resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspace')), 'Microsoft.SecurityInsights/contentPackages', variables('_solutionId'))]"
+            ],
+            "properties": {
+                "contentId": "[variables('_dataConnectorContentIdConnectorDefinition1')]",
+                "displayName": "IRONSCALES Incidents",
+                "contentKind": "DataConnector",
+                "mainTemplate": {
+                    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+                    "contentVersion": "[variables('dataConnectorCCPVersion')]",
+                    "parameters": {},
+                    "variables": {},
+                    "resources": [
+                        {
+                            "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/',variables('_dataConnectorContentIdConnectorDefinition1'))]",
+                            "apiVersion": "2022-09-01-preview",
+                            "type": "Microsoft.OperationalInsights/workspaces/providers/dataConnectorDefinitions",
+                            "location": "[parameters('workspace-location')]",
+                            "kind": "Customizable",
+                            "properties": {
+                                "connectorUiConfig": {
+                                    "id": "IRONSCALESIncidents",
+                                    "title": "IRONSCALES Incidents",
+                                    "publisher": "IRONSCALES",
+                                    "descriptionMarkdown": "Ingest IRONSCALES email-security incidents into Microsoft Sentinel by polling the IRONSCALES Incident Management API.",
+                                    "graphQueriesTableName": "IRONSCALESIncidents_CL",
+                                    "graphQueries": [
+                                        {
+                                            "metricName": "Incidents received",
+                                            "legend": "IRONSCALES incidents",
+                                            "baseQuery": "{{graphQueriesTableName}}"
+                                        }
+                                    ],
+                                    "sampleQueries": [
+                                        {
+                                            "description": "Latest incidents",
+                                            "query": "{{graphQueriesTableName}}\n| sort by TimeGenerated desc\n| take 100"
+                                        },
+                                        {
+                                            "description": "Incidents by classification",
+                                            "query": "{{graphQueriesTableName}}\n| summarize Incidents = count() by Classification\n| sort by Incidents desc"
+                                        },
+                                        {
+                                            "description": "Most targeted recipients",
+                                            "query": "{{graphQueriesTableName}}\n| summarize Incidents = count() by RecipientEmail\n| top 20 by Incidents desc"
+                                        }
+                                    ],
+                                    "dataTypes": [
+                                        {
+                                            "name": "{{graphQueriesTableName}}",
+                                            "lastDataReceivedQuery": "{{graphQueriesTableName}}\n| summarize Time = max(TimeGenerated)\n| where isnotempty(Time)"
+                                        }
+                                    ],
+                                    "connectivityCriteria": [
+                                        {
+                                            "type": "HasDataConnectors"
+                                        }
+                                    ],
+                                    "availability": {
+                                        "status": 1,
+                                        "isPreview": true
+                                    },
+                                    "permissions": {
+                                        "resourceProvider": [
+                                            {
+                                                "provider": "Microsoft.OperationalInsights/workspaces",
+                                                "permissionsDisplayText": "Read and write permissions are required.",
+                                                "providerDisplayName": "Workspace",
+                                                "scope": "Workspace",
+                                                "requiredPermissions": {
+                                                    "read": true,
+                                                    "write": true,
+                                                    "delete": true
+                                                }
+                                            }
+                                        ],
+                                        "customs": [
+                                            {
+                                                "name": "IRONSCALES API access",
+                                                "description": "A company ID and IRONSCALES company token are required. The connector exchanges the token for a JWT with the company.all scope at /appapi/get-token/."
+                                            }
+                                        ]
+                                    },
+                                    "instructionSteps": [
+                                        {
+                                            "title": "Connect IRONSCALES",
+                                            "description": "Select the IRONSCALES region, then enter the company ID and company token.",
+                                            "instructions": [
+                                                {
+                                                    "type": "Textbox",
+                                                    "parameters": {
+                                                        "label": "IRONSCALES API Base URL",
+                                                        "placeholder": "https://appapi.ironscales.com",
+                                                        "type": "text",
+                                                        "name": "apiBaseUrl",
+                                                        "validations": {
+                                                            "required": true
+                                                        }
+                                                    }
+                                                },
+                                                {
+                                                    "type": "Textbox",
+                                                    "parameters": {
+                                                        "label": "Company ID",
+                                                        "placeholder": "Enter the IRONSCALES company ID",
+                                                        "type": "text",
+                                                        "name": "companyId",
+                                                        "validations": {
+                                                            "required": true
+                                                        }
+                                                    }
+                                                },
+                                                {
+                                                    "type": "Textbox",
+                                                    "parameters": {
+                                                        "label": "Company token",
+                                                        "placeholder": "Enter the token from Settings > Account Settings > General & Security",
+                                                        "type": "password",
+                                                        "name": "appApiKey",
+                                                        "validations": {
+                                                            "required": true
+                                                        }
+                                                    }
+                                                },
+                                                {
+                                                    "type": "ConnectionToggleButton",
+                                                    "parameters": {
+                                                        "label": "Connect IRONSCALES",
+                                                        "name": "connectIRONSCALES"
+                                                    }
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/',concat('DataConnector-', variables('_dataConnectorContentIdConnectorDefinition1')))]",
+                            "apiVersion": "2022-01-01-preview",
+                            "type": "Microsoft.OperationalInsights/workspaces/providers/metadata",
+                            "properties": {
+                                "parentId": "[extensionResourceId(resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspace')), 'Microsoft.SecurityInsights/dataConnectorDefinitions', variables('_dataConnectorContentIdConnectorDefinition1'))]",
+                                "contentId": "[variables('_dataConnectorContentIdConnectorDefinition1')]",
+                                "kind": "DataConnector",
+                                "version": "[variables('dataConnectorCCPVersion')]",
+                                "source": {
+                                    "sourceId": "[variables('_solutionId')]",
+                                    "name": "[variables('_solutionName')]",
+                                    "kind": "Solution"
+                                },
+                                "author": {
+                                    "name": "IRONSCALES",
+                                    "email": "[variables('_email')]"
+                                },
+                                "support": {
+                                    "tier": "Partner",
+                                    "name": "IRONSCALES",
+                                    "email": "support@ironscales.com",
+                                    "link": "https://ironscales.com/"
+                                },
+                                "dependencies": {
+                                    "criteria": [
+                                        {
+                                            "version": "[variables('dataConnectorCCPVersion')]",
+                                            "contentId": "[variables('_dataConnectorContentIdConnections1')]",
+                                            "kind": "ResourcesDataConnector"
+                                        }
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "dcr-IRONSCALESIncidents",
+                            "apiVersion": "2022-06-01",
+                            "type": "Microsoft.Insights/dataCollectionRules",
+                            "location": "[parameters('workspace-location')]",
+                            "kind": "[variables('blanks')]",
+                            "dependsOn": [
+                                "[resourceId('Microsoft.OperationalInsights/workspaces/tables', parameters('workspace'), 'IRONSCALESIncidents_CL')]"
+                            ],
+                            "properties": {
+                                "dataCollectionEndpointId": "[variables('dataCollectionEndpointId1')]",
+                                "streamDeclarations": {
+                                    "Custom-IRONSCALESIncidents_CL": {
+                                        "columns": [
+                                            {
+                                                "name": "incidentID",
+                                                "type": "long"
+                                            },
+                                            {
+                                                "name": "emailSubject",
+                                                "type": "string"
+                                            },
+                                            {
+                                                "name": "linksCount",
+                                                "type": "long"
+                                            },
+                                            {
+                                                "name": "attachmentsCount",
+                                                "type": "long"
+                                            },
+                                            {
+                                                "name": "recipientEmail",
+                                                "type": "string"
+                                            },
+                                            {
+                                                "name": "recipientName",
+                                                "type": "string"
+                                            },
+                                            {
+                                                "name": "classification",
+                                                "type": "string"
+                                            },
+                                            {
+                                                "name": "assignee",
+                                                "type": "string"
+                                            },
+                                            {
+                                                "name": "senderName",
+                                                "type": "string"
+                                            },
+                                            {
+                                                "name": "senderEmail",
+                                                "type": "string"
+                                            },
+                                            {
+                                                "name": "affectedMailboxesCount",
+                                                "type": "long"
+                                            },
+                                            {
+                                                "name": "created",
+                                                "type": "datetime"
+                                            },
+                                            {
+                                                "name": "reportedBy",
+                                                "type": "string"
+                                            },
+                                            {
+                                                "name": "resolvedBy",
+                                                "type": "string"
+                                            },
+                                            {
+                                                "name": "challengedType",
+                                                "type": "string"
+                                            },
+                                            {
+                                                "name": "firstChallengedDate",
+                                                "type": "string"
+                                            },
+                                            {
+                                                "name": "incidentType",
+                                                "type": "string"
+                                            },
+                                            {
+                                                "name": "commentsCount",
+                                                "type": "long"
+                                            },
+                                            {
+                                                "name": "internalCommentsCount",
+                                                "type": "long"
+                                            },
+                                            {
+                                                "name": "communityCommentsCount",
+                                                "type": "long"
+                                            },
+                                            {
+                                                "name": "releaseRequestCount",
+                                                "type": "long"
+                                            },
+                                            {
+                                                "name": "latestEmailDate",
+                                                "type": "string"
+                                            }
+                                        ]
+                                    }
+                                },
+                                "destinations": {
+                                    "logAnalytics": [
+                                        {
+                                            "workspaceResourceId": "[variables('workspaceResourceId')]",
+                                            "name": "clv2ws1"
+                                        }
+                                    ]
+                                },
+                                "dataFlows": [
+                                    {
+                                        "streams": [
+                                            "Custom-IRONSCALESIncidents_CL"
+                                        ],
+                                        "destinations": [
+                                            "clv2ws1"
+                                        ],
+                                        "transformKql": "source | project TimeGenerated = now(), IncidentID = incidentID, EmailSubject = emailSubject, LinksCount = linksCount, AttachmentsCount = attachmentsCount, RecipientEmail = recipientEmail, RecipientName = recipientName, Classification = classification, Assignee = assignee, SenderName = senderName, SenderEmail = senderEmail, AffectedMailboxesCount = affectedMailboxesCount, Created = created, ReportedBy = reportedBy, ResolvedBy = resolvedBy, ChallengedType = challengedType, FirstChallengedDate = firstChallengedDate, IncidentType = incidentType, CommentsCount = commentsCount, InternalCommentsCount = internalCommentsCount, CommunityCommentsCount = communityCommentsCount, ReleaseRequestCount = releaseRequestCount, LatestEmailDate = latestEmailDate",
+                                        "outputStream": "Custom-IRONSCALESIncidents_CL"
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            "name": "IRONSCALESIncidents_CL",
+                            "apiVersion": "2022-10-01",
+                            "type": "Microsoft.OperationalInsights/workspaces/tables",
+                            "location": "[parameters('workspace-location')]",
+                            "kind": null,
+                            "properties": {
+                                "retentionInDays": 90,
+                                "totalRetentionInDays": 90,
+                                "schema": {
+                                    "name": "IRONSCALESIncidents_CL",
+                                    "columns": [
+                                        {
+                                            "name": "TimeGenerated",
+                                            "type": "datetime"
+                                        },
+                                        {
+                                            "name": "IncidentID",
+                                            "type": "long"
+                                        },
+                                        {
+                                            "name": "EmailSubject",
+                                            "type": "string"
+                                        },
+                                        {
+                                            "name": "LinksCount",
+                                            "type": "long"
+                                        },
+                                        {
+                                            "name": "AttachmentsCount",
+                                            "type": "long"
+                                        },
+                                        {
+                                            "name": "RecipientEmail",
+                                            "type": "string"
+                                        },
+                                        {
+                                            "name": "RecipientName",
+                                            "type": "string"
+                                        },
+                                        {
+                                            "name": "Classification",
+                                            "type": "string"
+                                        },
+                                        {
+                                            "name": "Assignee",
+                                            "type": "string"
+                                        },
+                                        {
+                                            "name": "SenderName",
+                                            "type": "string"
+                                        },
+                                        {
+                                            "name": "SenderEmail",
+                                            "type": "string"
+                                        },
+                                        {
+                                            "name": "AffectedMailboxesCount",
+                                            "type": "long"
+                                        },
+                                        {
+                                            "name": "Created",
+                                            "type": "datetime"
+                                        },
+                                        {
+                                            "name": "ReportedBy",
+                                            "type": "string"
+                                        },
+                                        {
+                                            "name": "ResolvedBy",
+                                            "type": "string"
+                                        },
+                                        {
+                                            "name": "ChallengedType",
+                                            "type": "string"
+                                        },
+                                        {
+                                            "name": "FirstChallengedDate",
+                                            "type": "string"
+                                        },
+                                        {
+                                            "name": "IncidentType",
+                                            "type": "string"
+                                        },
+                                        {
+                                            "name": "CommentsCount",
+                                            "type": "long"
+                                        },
+                                        {
+                                            "name": "InternalCommentsCount",
+                                            "type": "long"
+                                        },
+                                        {
+                                            "name": "CommunityCommentsCount",
+                                            "type": "long"
+                                        },
+                                        {
+                                            "name": "ReleaseRequestCount",
+                                            "type": "long"
+                                        },
+                                        {
+                                            "name": "LatestEmailDate",
+                                            "type": "string"
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    ]
+                },
+                "packageKind": "Solution",
+                "packageVersion": "[variables('_solutionVersion')]",
+                "packageName": "[variables('_solutionName')]",
+                "contentProductId": "[concat(take(variables('_solutionId'), 50),'-','dc','-', uniqueString(concat(variables('_solutionId'),'-','DataConnector','-',variables('_dataConnectorContentIdConnectorDefinition1'),'-', variables('dataConnectorCCPVersion'))))]",
+                "packageId": "[variables('_solutionId')]",
+                "contentSchemaVersion": "3.0.0",
+                "version": "[variables('dataConnectorCCPVersion')]"
+            }
+        },
+        {
+            "type": "Microsoft.OperationalInsights/workspaces/providers/dataConnectorDefinitions",
+            "apiVersion": "2022-09-01-preview",
+            "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/',variables('_dataConnectorContentIdConnectorDefinition1'))]",
+            "location": "[parameters('workspace-location')]",
+            "kind": "Customizable",
+            "properties": {
+                "connectorUiConfig": {
+                    "id": "IRONSCALESIncidents",
+                    "title": "IRONSCALES Incidents",
+                    "publisher": "IRONSCALES",
+                    "descriptionMarkdown": "Ingest IRONSCALES email-security incidents into Microsoft Sentinel by polling the IRONSCALES Incident Management API.",
+                    "graphQueriesTableName": "IRONSCALESIncidents_CL",
+                    "graphQueries": [
+                        {
+                            "metricName": "Incidents received",
+                            "legend": "IRONSCALES incidents",
+                            "baseQuery": "{{graphQueriesTableName}}"
+                        }
+                    ],
+                    "sampleQueries": [
+                        {
+                            "description": "Latest incidents",
+                            "query": "{{graphQueriesTableName}}\n| sort by TimeGenerated desc\n| take 100"
+                        },
+                        {
+                            "description": "Incidents by classification",
+                            "query": "{{graphQueriesTableName}}\n| summarize Incidents = count() by Classification\n| sort by Incidents desc"
+                        },
+                        {
+                            "description": "Most targeted recipients",
+                            "query": "{{graphQueriesTableName}}\n| summarize Incidents = count() by RecipientEmail\n| top 20 by Incidents desc"
+                        }
+                    ],
+                    "dataTypes": [
+                        {
+                            "name": "{{graphQueriesTableName}}",
+                            "lastDataReceivedQuery": "{{graphQueriesTableName}}\n| summarize Time = max(TimeGenerated)\n| where isnotempty(Time)"
+                        }
+                    ],
+                    "connectivityCriteria": [
+                        {
+                            "type": "HasDataConnectors"
+                        }
+                    ],
+                    "availability": {
+                        "status": 1,
+                        "isPreview": true
+                    },
+                    "permissions": {
+                        "resourceProvider": [
+                            {
+                                "provider": "Microsoft.OperationalInsights/workspaces",
+                                "permissionsDisplayText": "Read and write permissions are required.",
+                                "providerDisplayName": "Workspace",
+                                "scope": "Workspace",
+                                "requiredPermissions": {
+                                    "read": true,
+                                    "write": true,
+                                    "delete": true
+                                }
+                            }
+                        ],
+                        "customs": [
+                            {
+                                "name": "IRONSCALES API access",
+                                "description": "A company ID and IRONSCALES company token are required. The connector exchanges the token for a JWT with the company.all scope at /appapi/get-token/."
+                            }
+                        ]
+                    },
+                    "instructionSteps": [
+                        {
+                            "title": "Connect IRONSCALES",
+                            "description": "Enter the IRONSCALES URL, then enter the company ID and company token.",
+                            "instructions": [
+                                {
+                                    "type": "Textbox",
+                                    "parameters": {
+                                        "label": "IRONSCALES API Base URL",
+                                        "placeholder": "https://appapi.ironscales.com",
+                                        "type": "text",
+                                        "name": "apiBaseUrl",
+                                        "validations": {
+                                            "required": true
+                                        }
+                                    }
+                                },
+                                {
+                                    "type": "Textbox",
+                                    "parameters": {
+                                        "label": "Company ID",
+                                        "placeholder": "Enter the IRONSCALES company ID",
+                                        "type": "text",
+                                        "name": "companyId",
+                                        "validations": {
+                                            "required": true
+                                        }
+                                    }
+                                },
+                                {
+                                    "type": "Textbox",
+                                    "parameters": {
+                                        "label": "Company token",
+                                        "placeholder": "Enter the token from Settings > Account Settings > General & Security",
+                                        "type": "password",
+                                        "name": "appApiKey",
+                                        "validations": {
+                                            "required": true
+                                        }
+                                    }
+                                },
+                                {
+                                    "type": "ConnectionToggleButton",
+                                    "parameters": {
+                                        "label": "Connect IRONSCALES",
+                                        "name": "connectIRONSCALES"
+                                    }
+                                }
+                            ]
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "type": "Microsoft.OperationalInsights/workspaces/providers/metadata",
+            "apiVersion": "2022-01-01-preview",
+            "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/',concat('DataConnector-', variables('_dataConnectorContentIdConnectorDefinition1')))]",
+            "properties": {
+                "parentId": "[extensionResourceId(resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspace')), 'Microsoft.SecurityInsights/dataConnectorDefinitions', variables('_dataConnectorContentIdConnectorDefinition1'))]",
+                "contentId": "[variables('_dataConnectorContentIdConnectorDefinition1')]",
+                "kind": "DataConnector",
+                "version": "[variables('dataConnectorCCPVersion')]",
+                "source": {
+                    "sourceId": "[variables('_solutionId')]",
+                    "name": "[variables('_solutionName')]",
+                    "kind": "Solution"
+                },
+                "author": {
+                    "name": "IRONSCALES",
+                    "email": "[variables('_email')]"
+                },
+                "support": {
+                    "tier": "Partner",
+                    "name": "IRONSCALES",
+                    "email": "support@ironscales.com",
+                    "link": "https://ironscales.com/"
+                },
+                "dependencies": {
+                    "criteria": [
+                        {
+                            "version": "[variables('dataConnectorCCPVersion')]",
+                            "contentId": "[variables('_dataConnectorContentIdConnections1')]",
+                            "kind": "ResourcesDataConnector"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "type": "Microsoft.OperationalInsights/workspaces/providers/contentTemplates",
+            "apiVersion": "2023-04-01-preview",
+            "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/', variables('dataConnectorTemplateNameConnections1'), variables('dataConnectorCCPVersion'))]",
+            "location": "[parameters('workspace-location')]",
+            "dependsOn": [
+                "[extensionResourceId(resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspace')), 'Microsoft.SecurityInsights/contentPackages', variables('_solutionId'))]"
+            ],
+            "properties": {
+                "contentId": "[variables('_dataConnectorContentIdConnections1')]",
+                "displayName": "IRONSCALES Incidents",
+                "contentKind": "ResourcesDataConnector",
+                "mainTemplate": {
+                    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+                    "contentVersion": "[variables('dataConnectorCCPVersion')]",
+                    "parameters": {
+                        "guidValue": {
+                            "defaultValue": "[[newGuid()]",
+                            "type": "securestring"
+                        },
+                        "innerWorkspace": {
+                            "defaultValue": "[parameters('workspace')]",
+                            "type": "securestring"
+                        },
+                        "workspace": {
+                            "defaultValue": "[parameters('workspace')]",
+                            "type": "securestring"
+                        },
+                        "dcrConfig": {
+                            "defaultValue": {
+                                "dataCollectionEndpoint": "data collection Endpoint",
+                                "dataCollectionRuleImmutableId": "data collection rule immutableId"
+                            },
+                            "type": "object"
+                        },
+                        "apiBaseUrl": {
+                            "defaultValue": "apiBaseUrl",
+                            "type": "string",
+                            "minLength": 1
+                        },
+                        "connectorDefinitionName": {
+                            "defaultValue": "IRONSCALESIncidents",
+                            "type": "string",
+                            "minLength": 1
+                        },
+                        "companyId": {
+                            "defaultValue": "companyId",
+                            "type": "string",
+                            "minLength": 1
+                        },
+                        "appApiKey": {
+                            "defaultValue": "appApiKey",
+                            "type": "securestring",
+                            "minLength": 1
+                        }
+                    },
+                    "variables": {
+                        "_dataConnectorContentIdConnections1": "[variables('_dataConnectorContentIdConnections1')]"
+                    },
+                    "resources": [
+                        {
+                            "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/',concat('DataConnector-', variables('_dataConnectorContentIdConnections1')))]",
+                            "apiVersion": "2022-01-01-preview",
+                            "type": "Microsoft.OperationalInsights/workspaces/providers/metadata",
+                            "properties": {
+                                "parentId": "[extensionResourceId(resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspace')), 'Microsoft.SecurityInsights/dataConnectors', variables('_dataConnectorContentIdConnections1'))]",
+                                "contentId": "[variables('_dataConnectorContentIdConnections1')]",
+                                "kind": "ResourcesDataConnector",
+                                "version": "[variables('dataConnectorCCPVersion')]",
+                                "source": {
+                                    "sourceId": "[variables('_solutionId')]",
+                                    "name": "[variables('_solutionName')]",
+                                    "kind": "Solution"
+                                },
+                                "author": {
+                                    "name": "IRONSCALES",
+                                    "email": "[variables('_email')]"
+                                },
+                                "support": {
+                                    "tier": "Partner",
+                                    "name": "IRONSCALES",
+                                    "email": "support@ironscales.com",
+                                    "link": "https://ironscales.com/"
+                                }
+                            }
+                        },
+                        {
+                            "name": "[[concat(parameters('innerWorkspace'),'/Microsoft.SecurityInsights/', 'IRONSCALESPaginatedIncidents', parameters('guidValue'))]",
+                            "apiVersion": "2023-02-01-preview",
+                            "type": "Microsoft.OperationalInsights/workspaces/providers/dataConnectors",
+                            "location": "[parameters('workspace-location')]",
+                            "kind": "RestApiPoller",
+                            "properties": {
+                                "connectorDefinitionName": "IRONSCALESIncidents",
+                                "dataType": "IRONSCALESIncidents_CL",
+                                "dcrConfig": {
+                                    "streamName": "Custom-IRONSCALESIncidents_CL",
+                                    "dataCollectionEndpoint": "[[parameters('dcrConfig').dataCollectionEndpoint]",
+                                    "dataCollectionRuleImmutableId": "[[parameters('dcrConfig').dataCollectionRuleImmutableId]"
+                                },
+                                "auth": {
+                                    "type": "APIKey",
+                                    "ApiKey": "[[parameters('appApiKey')]",
+                                    "ApiKeyName": "key",
+                                    "ApiKeyIdentifier": "",
+                                    "IsApiKeyInPostPayload": true
+                                },
+                                "request": {
+                                    "apiEndpoint": "https://appapi.ironscales.com/appapi/get-token/",
+                                    "httpMethod": "POST",
+                                    "queryWindowInMin": 30,
+                                    "queryTimeFormat": "yyyy-MM-ddTHH:mm:ss.ffffffzzz",
+                                    "rateLimitQps": 2,
+                                    "retryCount": 3,
+                                    "timeoutInSeconds": 60,
+                                    "headers": {
+                                        "Accept": "application/json",
+                                        "Content-Type": "application/json"
+                                    },
+                                    "isPostPayloadJson": true,
+                                    "queryParametersTemplate": "{\"key\":\"{_APIKey}\",\"scopes\":[\"company.all\"]}"
+                                },
+                                "response": {
+                                    "format": "json",
+                                    "eventsJsonPaths": [
+                                        "$"
+                                    ]
+                                },
+                                "stepInfo": {
+                                    "stepType": "Nested",
+                                    "nextSteps": [
+                                        {
+                                            "stepId": "fetchIncidentsList",
+                                            "stepPlaceholdersParsingKql": "source | project res = parse_json(data) | project jwt = tostring(res.jwt)"
+                                        }
+                                    ]
+                                },
+                                "stepCollectorConfigs": {
+                                    "fetchIncidentsList": {
+                                        "shouldJoinNestedData": false,
+                                        "auth": {
+                                            "AuthType": "None"
+                                        },
+                                        "request": {
+                                            "httpMethod": "GET",
+                                            "queryWindowInMin": 1,
+                                            "queryTimeFormat": "yyyy-MM-ddTHH:mm:ssZ",
+                                            "rateLimitQPS": 2,
+                                            "paginatedCallsPerSecond": 1,
+                                            "apiEndpoint": "[[concat(parameters('apiBaseUrl'),'/appapi/incident/',parameters('companyId'),'/list/')]",
+                                            "headers": {
+                                                "Accept": "application/json",
+                                                "Authorization": "Bearer $jwt$"
+                                            },
+                                            "queryParameters": {
+                                                "items_per_page": "500",
+                                                "last_update_start_time": "{_QueryWindowStartTime}",
+                                                "last_update_end_time": "{_QueryWindowEndTime}"
+                                            }
+                                        },
+                                        "response": {
+                                            "eventsJsonPaths": [
+                                                "$.incidents[*]"
+                                            ],
+                                            "format": "json"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    ]
+                },
+                "packageKind": "Solution",
+                "packageVersion": "[variables('_solutionVersion')]",
+                "packageName": "[variables('_solutionName')]",
+                "contentProductId": "[concat(take(variables('_solutionId'), 50),'-','rdc','-', uniqueString(concat(variables('_solutionId'),'-','ResourcesDataConnector','-',variables('_dataConnectorContentIdConnections1'),'-', variables('dataConnectorCCPVersion'))))]",
+                "packageId": "[variables('_solutionId')]",
+                "contentSchemaVersion": "3.0.0",
+                "version": "[variables('dataConnectorCCPVersion')]"
+            }
+        },
+        {
+            "type": "Microsoft.OperationalInsights/workspaces/providers/contentPackages",
+            "apiVersion": "2023-04-01-preview",
+            "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/', variables('_solutionId'))]",
+            "location": "[parameters('workspace-location')]",
+            "properties": {
+                "version": "3.0.0",
+                "kind": "Solution",
+                "contentSchemaVersion": "3.0.0",
+                "displayName": "IRONSCALES",
+                "publisherDisplayName": "IRONSCALES",
+                "descriptionHtml": "<p><strong>Note:</strong> Please refer to the following before installing the solution:</p>\n<p>• Review the solution <a href=\"https://github.com/Azure/Azure-Sentinel/tree/master/Solutions/IronScales/ReleaseNotes.md\">Release Notes</a></p>\n<p>• There may be <a href=\"https://aka.ms/sentinelsolutionsknownissues\">known issues</a> pertaining to this Solution, please refer to them before installing.</p>\n<p>The IRONSCALES solution for Microsoft Sentinel enables ingestion of IRONSCALES alerts and events into Microsoft Sentinel via a codeless connector.</p>\n<p><strong>Data Connectors:</strong> 1</p>\n<p><a href=\"https://aka.ms/azuresentinel\">Learn more about Microsoft Sentinel</a> | <a href=\"https://aka.ms/azuresentinelsolutionsdoc\">Learn more about Solutions</a></p>\n",
+                "contentKind": "Solution",
+                "contentProductId": "[variables('_solutioncontentProductId')]",
+                "id": "[variables('_solutioncontentProductId')]",
+                "icon": "<img src=\"https://raw.githubusercontent.com/Azure/Azure-Sentinel/master/Logos/IronScales.svg\" width=\"75px\" height=\"75px\">",
+                "contentId": "[variables('_solutionId')]",
+                "parentId": "[variables('_solutionId')]",
+                "source": {
+                    "kind": "Solution",
+                    "name": "IRONSCALES",
+                    "sourceId": "[variables('_solutionId')]"
+                },
+                "author": {
+                    "name": "IRONSCALES",
+                    "email": "[variables('_email')]"
+                },
+                "support": {
+                    "name": "IRONSCALES",
+                    "email": "support@ironscales.com",
+                    "tier": "Partner",
+                    "link": "https://ironscales.com/"
+                },
+                "dependencies": {
+                    "operator": "AND",
+                    "criteria": [
+                        {
+                            "kind": "DataConnector",
+                            "contentId": "[variables('_dataConnectorContentIdConnectorDefinition1')]",
+                            "version": "[variables('dataConnectorCCPVersion')]"
+                        }
+                    ]
+                },
+                "firstPublishDate": "2026-09-18",
+                "lastPublishDate": "2026-09-19",
+                "providers": [
+                    "IRONSCALES"
+                ],
+                "categories": {
+                    "domains": [
+                        "Security - Threat Protection"
+                    ]
+                }
+            }
+        }
+    ],
+    "outputs": {}
+}
