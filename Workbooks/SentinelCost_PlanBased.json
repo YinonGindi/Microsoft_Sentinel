@@ -1,0 +1,1379 @@
+{
+  "version": "Notebook/1.0",
+  "items": [
+    {
+      "type": 1,
+      "content": {
+        "json": "# Microsoft Sentinel cost summary\n---\n"
+      },
+      "name": "text - 2"
+    },
+    {
+      "type": 9,
+      "content": {
+        "version": "KqlParameterItem/1.0",
+        "parameters": [
+          {
+            "id": "9d001d6f-301c-4d03-b02c-b8cc6dce210b",
+            "version": "KqlParameterItem/1.0",
+            "name": "TimeRange",
+            "type": 4,
+            "isRequired": true,
+            "value": {
+              "durationMs": 7776000000
+            },
+            "typeSettings": {
+              "selectableValues": [
+                {
+                  "durationMs": 300000
+                },
+                {
+                  "durationMs": 900000
+                },
+                {
+                  "durationMs": 1800000
+                },
+                {
+                  "durationMs": 3600000
+                },
+                {
+                  "durationMs": 14400000
+                },
+                {
+                  "durationMs": 43200000
+                },
+                {
+                  "durationMs": 86400000
+                },
+                {
+                  "durationMs": 172800000
+                },
+                {
+                  "durationMs": 259200000
+                },
+                {
+                  "durationMs": 604800000
+                },
+                {
+                  "durationMs": 1209600000
+                },
+                {
+                  "durationMs": 2419200000
+                },
+                {
+                  "durationMs": 2592000000
+                },
+                {
+                  "durationMs": 5184000000
+                },
+                {
+                  "durationMs": 7776000000
+                }
+              ],
+              "allowCustom": true
+            },
+            "timeContext": {
+              "durationMs": 86400000
+            }
+          },
+          {
+            "id": "67c2ce6e-ea54-4ae4-8343-3fcad8e53d1b",
+            "version": "KqlParameterItem/1.0",
+            "name": "Workspace",
+            "type": 5,
+            "isRequired": true,
+            "multiSelect": true,
+            "quote": "'",
+            "delimiter": ",",
+            "query": "resources | where type =~ 'Microsoft.operationsmanagement/solutions' | where name contains 'SecurityInsights' | project id = tostring(properties.workspaceResourceId)",
+            "crossComponentResources": [
+              "value::all"
+            ],
+            "value": [
+              "value::all"
+            ],
+            "typeSettings": {
+              "limitSelectTo": 100,
+              "additionalResourceOptions": [
+                "value::all"
+              ],
+              "showDefault": false
+            },
+            "timeContext": {
+              "durationMs": 86400000
+            },
+            "queryType": 1,
+            "resourceType": "microsoft.resourcegraph/resources"
+          },
+          {
+            "id": "9375c625-e916-4f48-b072-352d6aeefddb",
+            "version": "KqlParameterItem/1.0",
+            "name": "Price",
+            "label": "Analytics tier price ($/GB)",
+            "type": 1,
+            "value": "4.3",
+            "description": "Analytics tier ingestion price per GB (PAYG or effective Commitment Tier rate), Log Analytics + Sentinel combined, for your region."
+          },
+          {
+            "id": "85a9e565-3ac9-44c1-a99d-030d9735b6e0",
+            "version": "KqlParameterItem/1.0",
+            "name": "DataLakePrice",
+            "label": "Data Lake tier price ($/GB)",
+            "type": 1,
+            "value": "0.15",
+            "description": "Sentinel data lake price per GB = data lake ingestion + data processing (East US list: 0.05 + 0.10). Storage and query (compute) are billed separately."
+          },
+          {
+            "id": "9d5299d0-36a0-4666-9803-ca6931bdaab7",
+            "version": "KqlParameterItem/1.0",
+            "name": "RetentionPrice",
+            "label": "Retention price",
+            "type": 1,
+            "description": "Enter the retention price per GB/month that will be used in this workbook's calculations",
+            "value": "0.1"
+          },
+          {
+            "id": "67494f3e-322e-4411-9b45-1cbea03ed618",
+            "version": "KqlParameterItem/1.0",
+            "name": "TotalE5Seats",
+            "label": "Total seats (E5/A5/F5/G5)",
+            "type": 1,
+            "description": "Enter the total number of Microsoft 365 E5, A5, F5, G5 and Microsoft 365 E5, A5, F5, G5 Security licenses in your environment"
+          },
+          {
+            "id": "3c0ef385-0db2-4f4b-a04c-a8a8fea6c2f5",
+            "version": "KqlParameterItem/1.0",
+            "name": "TotalMdcPlan2",
+            "label": "Total Defender for Servers Plan 2",
+            "type": 1,
+            "description": "Enter the total number Defender for Servers Plan 2 servers"
+          }
+        ],
+        "style": "pills"
+      },
+      "name": "parameters - 5"
+    },
+    {
+      "type": 1,
+      "content": {
+        "json": "**Plan-based pricing:** each table's plan (Analytics, Basic, Data Lake/Auxiliary) is read automatically from the `Plan` column in the Usage table and priced with the matching price parameter. Data lake storage and query (compute) charges are not included. E5 and Defender for Servers P2 grants are calculated on Analytics tables only."
+      },
+      "name": "text - PlanPricingNote"
+    },
+    {
+      "type": 1,
+      "content": {
+        "json": "## Ingestion and Retention Summary"
+      },
+      "name": "text - 2"
+    },
+    {
+      "type": 12,
+      "content": {
+        "version": "NotebookGroup/1.0",
+        "groupType": "editable",
+        "items": [
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "union withsource=TableName1 Usage, AzureDiagnostics | where TimeGenerated < ago(90d) | extend key = 'Key' | summarize size = sum(_BilledSize)/1024/1024/1024 by key\r\n| project ['Data over 90 days'] = size, ['Retention Cost'] = size*{RetentionPrice}\r\n\r\n\r\n",
+              "size": 4,
+              "title": "Data older than 90 days and resulting retention cost",
+              "noDataMessage": "You have no data older than 90 days",
+              "noDataMessageStyle": 3,
+              "queryType": "advancedHunting",
+              "visualization": "tiles",
+              "gridSettings": {
+                "formatters": [
+                  {
+                    "columnMatch": "Data over 90 days",
+                    "formatter": 0,
+                    "numberFormat": {
+                      "unit": 36,
+                      "options": {
+                        "style": "decimal",
+                        "useGrouping": false
+                      }
+                    }
+                  },
+                  {
+                    "columnMatch": "Retention Cost",
+                    "formatter": 0,
+                    "numberFormat": {
+                      "unit": 0,
+                      "options": {
+                        "style": "decimal"
+                      }
+                    }
+                  }
+                ]
+              },
+              "tileSettings": {
+                "leftContent": {
+                  "columnMatch": "Data over 90 days",
+                  "formatter": 12,
+                  "formatOptions": {
+                    "palette": "greenRed"
+                  },
+                  "numberFormat": {
+                    "unit": 39,
+                    "options": {
+                      "style": "decimal",
+                      "maximumFractionDigits": 1
+                    }
+                  }
+                },
+                "rightContent": {
+                  "columnMatch": "Retention Cost",
+                  "formatter": 12,
+                  "formatOptions": {
+                    "palette": "greenRed"
+                  },
+                  "numberFormat": {
+                    "unit": 0,
+                    "options": {
+                      "currency": "USD",
+                      "style": "currency",
+                      "maximumFractionDigits": 2
+                    }
+                  }
+                },
+                "showBorder": false,
+                "size": "auto"
+              }
+            },
+            "customWidth": "33",
+            "name": "query - 7"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "Usage\n| where TimeGenerated > startofday({TimeRange:start}) and TimeGenerated < startofday({TimeRange:end})\n| where IsBillable == true\n| extend Plan = case(column_ifexists(\"Plan\", \"\") in~ (\"Auxiliary\", \"DataLake\", \"Data Lake\"), \"Data Lake\", column_ifexists(\"Plan\", \"\") =~ \"Basic\", \"Basic\", \"Analytics\")\n| where Plan == \"Analytics\"\n| summarize GB = sum(Quantity)/1024 by bin(TimeGenerated, 1d)\n| summarize ['Analytics GBs/day'] = round(avg(GB), 2)\n| extend ['Analytics GBs/day'] = iff(isnull(['Analytics GBs/day']) or isnan(['Analytics GBs/day']), 0.0, ['Analytics GBs/day'])",
+              "size": 4,
+              "title": "Avg billable GB/day - Analytics",
+              "timeContextFromParameter": "TimeRange",
+              "queryType": "advancedHunting",
+              "visualization": "tiles",
+              "tileSettings": {
+                "titleContent": {
+                  "columnMatch": "Analytics GBs/day",
+                  "formatter": 12,
+                  "formatOptions": {
+                    "palette": "greenRed"
+                  },
+                  "numberFormat": {
+                    "unit": 0,
+                    "options": {
+                      "style": "decimal",
+                      "maximumFractionDigits": 2
+                    }
+                  }
+                },
+                "showBorder": false,
+                "size": "auto"
+              }
+            },
+            "customWidth": "33",
+            "name": "AvgGBPerDay-Analytics"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "Usage\n| where TimeGenerated > startofday({TimeRange:start}) and TimeGenerated < startofday({TimeRange:end})\n| where IsBillable == true\n| extend Plan = case(column_ifexists(\"Plan\", \"\") in~ (\"Auxiliary\", \"DataLake\", \"Data Lake\"), \"Data Lake\", column_ifexists(\"Plan\", \"\") =~ \"Basic\", \"Basic\", \"Analytics\")\n| where Plan == \"Data Lake\"\n| summarize GB = sum(Quantity)/1024 by bin(TimeGenerated, 1d)\n| summarize ['Data Lake GBs/day'] = round(avg(GB), 2)\n| extend ['Data Lake GBs/day'] = iff(isnull(['Data Lake GBs/day']) or isnan(['Data Lake GBs/day']), 0.0, ['Data Lake GBs/day'])",
+              "size": 4,
+              "title": "Avg billable GB/day - Data Lake",
+              "timeContextFromParameter": "TimeRange",
+              "queryType": "advancedHunting",
+              "visualization": "tiles",
+              "tileSettings": {
+                "titleContent": {
+                  "columnMatch": "Data Lake GBs/day",
+                  "formatter": 12,
+                  "formatOptions": {
+                    "palette": "blue"
+                  },
+                  "numberFormat": {
+                    "unit": 0,
+                    "options": {
+                      "style": "decimal",
+                      "maximumFractionDigits": 2
+                    }
+                  }
+                },
+                "showBorder": false,
+                "size": "auto"
+              }
+            },
+            "customWidth": "33",
+            "name": "AvgGBPerDay-DataLake"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "let _BasicPrice = 1.0;      // Basic tier $/GB - set your regional rate\nlet byPlan = Usage\n| where IsBillable == true\n| extend Plan = case(column_ifexists(\"Plan\", \"\") in~ (\"Auxiliary\", \"DataLake\", \"Data Lake\"), \"Data Lake\", column_ifexists(\"Plan\", \"\") =~ \"Basic\", \"Basic\", \"Analytics\")\n| extend UnitPrice = case(Plan == \"Data Lake\", toreal({DataLakePrice}), Plan == \"Basic\", _BasicPrice, toreal({Price}))\n| summarize size = sum(Quantity)/1024, cost = sum(Quantity/1024*UnitPrice) by Plan;\nunion byPlan, (byPlan | summarize size = sum(size), cost = sum(cost) | extend Plan = \"Total\")\n| extend o = case(Plan==\"Total\",0, Plan==\"Analytics\",1, Plan==\"Basic\",2, 3)\n| order by o asc\n| project Plan, ['Total data ingestion'] = size, ['Estimated cost'] = cost",
+              "size": 4,
+              "title": "Billable ingestion & estimated cost by plan ({TimeRange:label})",
+              "timeContextFromParameter": "TimeRange",
+              "queryType": "advancedHunting",
+              "visualization": "tiles",
+              "tileSettings": {
+                "titleContent": {
+                  "columnMatch": "Plan",
+                  "formatter": 1
+                },
+                "leftContent": {
+                  "columnMatch": "Total data ingestion",
+                  "formatter": 12,
+                  "formatOptions": {
+                    "palette": "greenRed"
+                  },
+                  "numberFormat": {
+                    "unit": 39,
+                    "options": {
+                      "style": "decimal",
+                      "useGrouping": false,
+                      "maximumFractionDigits": 1
+                    }
+                  }
+                },
+                "rightContent": {
+                  "columnMatch": "Estimated cost",
+                  "formatter": 12,
+                  "formatOptions": {
+                    "palette": "greenRed"
+                  },
+                  "numberFormat": {
+                    "unit": 0,
+                    "options": {
+                      "currency": "USD",
+                      "style": "currency",
+                      "useGrouping": false,
+                      "maximumFractionDigits": 1
+                    }
+                  }
+                },
+                "showBorder": true,
+                "size": "auto",
+                "maximumTiles": 4
+              }
+            },
+            "customWidth": "100",
+            "name": "query - 8"
+          }
+        ]
+      },
+      "name": "Costing"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "let _BasicPrice = 1.0;      // Basic tier $/GB - set your regional rate\nlet Categories = datatable(Type:string,Category:string)\r\n[\r\n\"AuditLogs\" , \"Microsoft Entra ID\",\r\n\"SigninLogs\" , \"Microsoft Entra ID\",\r\n\"AADNonInteractiveUserSignInLogs\" , \"Microsoft Entra ID\",\r\n\"AADRiskyUsers\" , \"Microsoft Entra ID\",\r\n\"AADRiskyServicePrincipals\" , \"Microsoft Entra ID\",\r\n\"AADServicePrincipalRiskEvents\" , \"Microsoft Entra ID\",\r\n\"ADFSSignInLogs\" , \"Microsoft Entra ID\",\r\n\"NetworkAccessTraffic\" , \"Microsoft Entra ID\",\r\n\"AADUserRiskEvents\" , \"Microsoft Entra ID\",\r\n\"AADServicePrincipalSignInLogs\" , \"Microsoft Entra ID\",\r\n\"AADManagedIdentitySignInLogs\" , \"Microsoft Entra ID\",\r\n\"AADProvisioningLogs\" , \"Microsoft Entra ID\",\r\n\"AZFWApplicationRule\" , \"Firewall\",\r\n\"AZFWApplicationRuleAggregation\" , \"Firewall\",\r\n\"AZFWDnsQuery\" , \"Firewall\",\r\n\"AZFWIdpsSignature\" , \"Firewall\",\r\n\"AZFWNatRule\" , \"Firewall\",\r\n\"AZFWNatRuleAggregation\" , \"Firewall\",\r\n\"AZFWNetworkRule\" , \"Firewall\",\r\n\"AZFWNetworkRuleAggregation\" , \"Firewall\",\r\n\"WindowsFirewall\" , \"Firewall\",\r\n\"Event\" , \"Windows Event log\",\r\n\"BehaviorAnalytics\" , \"User Entity Behavior Analytics\",\r\n\"UserPeerAnalytics\" , \"User Entity Behavior Analytics\",\r\n\"UserAccessAnalytics\" , \"User Entity Behavior Analytics\",\r\n\"IdentityInfo\" , \"User Entity Behavior Analytics\",\r\n\"DeviceLogonEvents\" , \"Microsoft Defender for Endpoint\",\r\n\"DeviceEvents\" , \"Microsoft Defender for Endpoint\",\r\n\"DeviceNetworkInfo\" , \"Microsoft Defender for Endpoint\",\r\n\"DeviceImageLoadEvents\" , \"Microsoft Defender for Endpoint\",\r\n\"DeviceFileEvents\" , \"Microsoft Defender for Endpoint\",\r\n\"DeviceInfo\" , \"Microsoft Defender for Endpoint\",\r\n\"DeviceProcessEvents\" , \"Microsoft Defender for Endpoint\",\r\n\"DeviceNetworkEvents\" , \"Microsoft Defender for Endpoint\",\r\n\"DeviceRegistryEvents\" , \"Microsoft Defender for Endpoint\",\r\n\"DeviceFileCertificateInfo\" , \"Microsoft Defender for Endpoint\",\r\n\"EmailAttachmentInfo\" , \"Microsoft Defender for Office 365\",\r\n\"EmailEvents\" , \"Microsoft Defender for Office 365\",\r\n\"EmailPostDeliveryEvents\" , \"Microsoft Defender for Office 365\",\r\n\"EmailUrlInfo\" , \"Microsoft Defender for Office 365\",\r\n\"IdentityLogonEvents\" , \"Microsoft Defender for Identity\",\r\n\"IdentityQueryEvents\" , \"Microsoft Defender for Identity\",\r\n\"IdentityDirectoryEvents\" , \"Microsoft Defender for Identity\",\r\n\"CloudAppEvents\" , \"Microsoft Defender for Cloud Apps\",\r\n\"AlertEvidence\" , \"Microsoft Defender Alert Evidence\",\r\n\"InsightsMetrics\" , \"Azure Monitor for VMs\",\r\n\"VMBoundPort\" , \"Azure Monitor for VMs\",\r\n\"VMComputer\" , \"Azure Monitor for VMs\",\r\n\"VMConnection\" , \"Azure Monitor for VMs\",\r\n\"VMProcess\" , \"Azure Monitor for VMs\",\r\n\"SecurityEvent\" , \"Windows Security Events\",\r\n\"StorageBlobLogs\" , \"Azure Storage\",\r\n\"StorageFileLogs\" , \"Azure Storage\",\r\n\"Syslog\" , \"Syslog/CEF\",\r\n\"SecurityIoTRawEvent\" , \"IoT Logs\",\r\n\"CommonSecurityLog\" , \"Syslog/CEF\",\r\n\"ThreatIntelligenceIndicator\" , \"Threat Intelligence\",\r\n\"DnsEvents\" , \"DNS Logs\",\r\n\"DnsInventory\" , \"DNS Logs\",\r\n\"AWSCloudTrail\" , \"AWS Logs\",\r\n\"AWSVPCFlow\" , \"AWS Logs\",\r\n\"ConfigurationChange\" , \"Change Tracking\",\r\n\"ConfigurationData\" , \"Change Tracking\",\r\n\"AzureDiagnostics\" , \"Azure Resources\",\r\n\"AzureActivity\" , \"Azure Resources\",\r\n\"LAQueryLogs\" , \"Management\",\r\n\"SentinelHealth\" , \"Sentinel\",\r\n\"Perf\" , \"Performance\",\r\n\"AzureMetrics\" , \"Azure Metrics\",\r\n\"SecurityNestedRecommendation\" , \"Microsoft Defender for Cloud\",\r\n\"SecurityRecommendation\" , \"Microsoft Defender for Cloud\",\r\n\"SecurityRegulatoryCompliance\" , \"Microsoft Defender for Cloud\",\r\n\"SecureScoreControls\" , \"Microsoft Defender for Cloud\",\r\n\"SecurityBaseline\" , \"Microsoft Defender for Cloud\",\r\n\"SecureScores\" , \"Microsoft Defender for Cloud\",\r\n\"Update\" , \"Update Management\",\r\n\"UpdateSummary\" , \"Update Management\",\r\n\"DeviceTvmSecureConfigurationAssessment\" , \"Microsoft Defender Vuln. Management\",\r\n\"DeviceTvmSoftwareVulnerabilities\" , \"Microsoft Defender Vuln. Management\",\r\n\"DeviceTvmSoftwareInventory\" , \"Microsoft Defender Vuln. Management\",\r\n\"UrlClickEvents\" , \"Microsoft Defender for Office 365\",\r\n\"SecurityBaselineSummary\" , \"Microsoft Defender for Cloud\",\r\n\"AZFWThreatIntel\" , \"Firewall\",\r\n\"AWSGuardDuty\" , \"AWS Logs\",\r\n\"Watchlist\" , \"Sentinel\",\r\n\"HuntingBookmark\" , \"Sentinel\",\r\n\"SentinelAudit\" , \"Sentinel\",\r\n\"Operation\" , \"Log Management\",\r\n\"StorageTableLogs\" , \"Azure Storage\",\r\n\"AddonAzureBackupStorage\" , \"Azure Storage\",\r\n\"AddonAzureBackupPolicy\" , \"Azure Storage\",\r\n\"StorageQueueLogs\" , \"Azure Storage\",\r\n\"AddonAzureBackupProtectedInstance\" , \"Azure Storage\",\r\n\"AddonAzureBackupJobs\" , \"Azure Storage\",\n\"ThreatIntelIndicators\" , \"Threat Intelligence\",\n\"ThreatIntelObjects\" , \"Threat Intelligence\",\n\"MicrosoftGraphActivityLogs\" , \"Microsoft Entra ID\",\n\"CopilotActivity\" , \"Microsoft 365 Copilot\",\n\"IntuneDevices\" , \"Microsoft Intune\",\n\"IntuneDeviceComplianceOrg\" , \"Microsoft Intune\",\n\"IntuneOperationalLogs\" , \"Microsoft Intune\",\n\"IntuneAuditLogs\" , \"Microsoft Intune\",\n\"Anomalies\" , \"User Entity Behavior Analytics\",\n\"AppTraces\" , \"Application Insights\",\n\"AppDependencies\" , \"Application Insights\",\n\"AppMetrics\" , \"Application Insights\",\n\"AppRequests\" , \"Application Insights\",\n\"AppPerformanceCounters\" , \"Application Insights\",\n\"AppExceptions\" , \"Application Insights\",\n\"AppAvailabilityResults\" , \"Application Insights\",\n\"AppBrowserTimings\" , \"Application Insights\",\n\"AppEvents\" , \"Application Insights\",\n\"AppPageViews\" , \"Application Insights\",\n\"AppSystemEvents\" , \"Application Insights\",\n\"GoogleWorkspaceReports\" , \"Google Workspace\",\n\"DataverseActivity\" , \"Microsoft Power Platform\",\n\"PowerPlatformAdminActivity\" , \"Microsoft Power Platform\",\n\"PowerAutomateActivity\" , \"Microsoft Power Platform\",\n\"PowerAppsActivity\" , \"Microsoft Power Platform\",\n\"PowerBIActivity\" , \"Microsoft Power Platform\",\n\"MicrosoftPurviewInformationProtection\" , \"Microsoft Purview\",\n\"AlertInfo\" , \"Microsoft Defender XDR\",\n\"SecurityAlert\" , \"Sentinel\",\n\"SecurityIncident\" , \"Sentinel\"\n];\r\nlet customTables = Usage\n| where IsBillable == true\n| where DataType contains \"_CL\"\n| extend Plan = case(column_ifexists(\"Plan\", \"\") in~ (\"Auxiliary\", \"DataLake\", \"Data Lake\"), \"Data Lake\", column_ifexists(\"Plan\", \"\") =~ \"Basic\", \"Basic\", \"Analytics\")\n| extend UnitPrice = case(Plan == \"Data Lake\", toreal({DataLakePrice}), Plan == \"Basic\", _BasicPrice, toreal({Price}))\n| summarize size = sum(Quantity)/1024 by DataType, Plan, UnitPrice\n| project ['Log Type'] = \"Custom Log\", ['Table'] = DataType, Plan, ['Table Size'] = size, ['Price/GB'] = UnitPrice, ['Estimated cost'] = size*UnitPrice;\nlet AzDiagTables = AzureDiagnostics\n| where _IsBillable == true\n| summarize TotalIngestBytes = sum(_BilledSize) by Category\n| project ['Log Type'] = \"AzureDiagnostics\", ['Table'] = Category, Plan = \"Analytics\", ['Table Size'] = TotalIngestBytes/1024/1024/1024, ['Price/GB'] = toreal({Price}), ['Estimated cost'] = TotalIngestBytes/1024/1024/1024*toreal({Price});\nlet knownTables = Usage\n| where IsBillable == true\n| where DataType <> \"AzureDiagnostics\" and DataType !contains \"_CL\"\n| extend Plan = case(column_ifexists(\"Plan\", \"\") in~ (\"Auxiliary\", \"DataLake\", \"Data Lake\"), \"Data Lake\", column_ifexists(\"Plan\", \"\") =~ \"Basic\", \"Basic\", \"Analytics\")\n| extend UnitPrice = case(Plan == \"Data Lake\", toreal({DataLakePrice}), Plan == \"Basic\", _BasicPrice, toreal({Price}))\n| join kind=leftouter Categories on $left.DataType == $right.Type\n| summarize size = sum(Quantity)/1024 by Category, DataType, Plan, UnitPrice\n| project ['Log Type'] = case(isnotempty(Category), Category, DataType startswith \"App\", \"Application Insights\", DataType startswith \"Intune\", \"Microsoft Intune\", DataType startswith \"AAD\", \"Microsoft Entra ID\", DataType startswith \"Device\", \"Microsoft Defender for Endpoint\", DataType startswith \"Email\", \"Microsoft Defender for Office 365\", DataType startswith \"Identity\", \"Microsoft Defender for Identity\", DataType startswith \"AZFW\", \"Firewall\", DataType startswith \"AWS\", \"AWS Logs\", DataType startswith \"GCP\", \"GCP Logs\", DataType startswith \"ThreatIntel\", \"Threat Intelligence\", DataType startswith \"Power\" or DataType startswith \"Dataverse\", \"Microsoft Power Platform\", DataType startswith \"MicrosoftPurview\", \"Microsoft Purview\", \"Other\"), ['Table'] = DataType, Plan, ['Table Size'] = size, ['Price/GB'] = UnitPrice, ['Estimated cost'] = size*UnitPrice;\nunion customTables, knownTables, AzDiagTables\n| project ['Log Type'], Table, Plan, ['Table Size'], ['Price/GB'], ['Estimated cost']\n| sort by ['Estimated cost'] desc",
+        "size": 2,
+        "title": "Breakdown of billable ingestion and cost by log category ({TimeRange:label})",
+        "timeContextFromParameter": "TimeRange",
+        "queryType": "advancedHunting",
+        "visualization": "table",
+        "gridSettings": {
+          "formatters": [
+            {
+              "columnMatch": "Log Type",
+              "formatter": 5
+            },
+            {
+              "columnMatch": "Table",
+              "formatter": 5
+            },
+            {
+              "columnMatch": "Plan",
+              "formatter": 1
+            },
+            {
+              "columnMatch": "Table Size",
+              "formatter": 3,
+              "formatOptions": {
+                "palette": "greenRed",
+                "aggregation": "Sum"
+              },
+              "numberFormat": {
+                "unit": 39,
+                "options": {
+                  "style": "decimal",
+                  "useGrouping": false
+                }
+              }
+            },
+            {
+              "columnMatch": "Estimated cost",
+              "formatter": 0,
+              "formatOptions": {
+                "aggregation": "Sum"
+              },
+              "numberFormat": {
+                "unit": 0,
+                "options": {
+                  "currency": "USD",
+                  "style": "currency"
+                }
+              }
+            },
+            {
+              "columnMatch": "Price/GB",
+              "formatter": 0,
+              "numberFormat": {
+                "unit": 0,
+                "options": {
+                  "currency": "USD",
+                  "style": "currency"
+                }
+              }
+            }
+          ],
+          "hierarchySettings": {
+            "treeType": 1,
+            "groupBy": [
+              "Log Type"
+            ],
+            "finalBy": "Table"
+          },
+          "labelSettings": [
+            {
+              "columnId": "Plan",
+              "label": "Plan"
+            }
+          ]
+        },
+        "graphSettings": {
+          "type": 0,
+          "topContent": {
+            "columnMatch": "Log Category",
+            "formatter": 1
+          },
+          "centerContent": {
+            "columnMatch": "Billed Size",
+            "formatter": 1,
+            "numberFormat": {
+              "unit": 17,
+              "options": {
+                "maximumSignificantDigits": 3,
+                "maximumFractionDigits": 2
+              }
+            }
+          }
+        }
+      },
+      "name": "query - 2"
+    },
+    {
+      "type": 12,
+      "content": {
+        "version": "NotebookGroup/1.0",
+        "groupType": "editable",
+        "items": [
+          {
+            "type": 1,
+            "content": {
+              "json": "## Microsoft Sentinel benefit for Microsoft 365 E5, A5, F5 and G5 customers\r\n\r\nWith security information and event management (SIEM) and extended detection and response (XDR) from Microsoft, you’re armed with the context and automation you need to stop sophisticated, cross-domain attacks across your entire organization. \r\n\r\nMicrosoft 365 E5, A5, F5, G5 and Microsoft 365 E5, A5, F5, G5 Security customers can get data grant up to 5MB per user/day of Microsoft 365 data ingestion into Microsoft Sentinel. <br>\r\nThe data sources included in this offer include:\r\n\r\n- Microsoft Entra ID sign-in and audit logs\r\n- Microsoft Cloud App Security shadow IT discovery logs\r\n- Microsoft Information Protection logs\r\n- Microsoft 365 advanced hunting data\r\n\r\nThe data grant will be calculated at the end of the month and applied to your bill, covering the cost of up to 5 MB of data ingestion per user/day.\r\n\r\nVisit https://azure.microsoft.com/offers/sentinel-microsoft-365-offer/ for more information\r\n\r\n<br>\r\n\r\n### Below are the ingestion for the eligible data sources:\r\n\r\n_**Note:** Kindly specify **Total seats (E5/A5/F5/G5)** and **Ingestion Price** parameters for calculation._"
+            },
+            "name": "text - 12"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "Usage\r\n| where IsBillable == true\n| extend Plan = case(column_ifexists(\"Plan\", \"\") in~ (\"Auxiliary\", \"DataLake\", \"Data Lake\"), \"Data Lake\", column_ifexists(\"Plan\", \"\") =~ \"Basic\", \"Basic\", \"Analytics\")\n| where Plan == \"Analytics\"\n| where DataType in (\"SigninLogs\", \r\n\"AuditLogs\", \r\n\"AADNonInteractiveUserSignInLogs\", \r\n\"AADServicePrincipalSignInLogs\",\r\n\"AADManagedIdentitySignInLogs\",\r\n\"AADProvisioningLogs\",\r\n\"ADFSSignInLogs\",\r\n\"McasShadowItReporting\", \r\n\"InformationProtectionLogs_CL\", \r\n\"DeviceEvents\",  \r\n\"DeviceFileEvents\",  \r\n\"DeviceImageLoadEvents\",  \r\n\"DeviceInfo\",  \r\n\"DeviceLogonEvents\",  \r\n\"DeviceNetworkEvents\",  \r\n\"DeviceNetworkInfo\",  \r\n\"DeviceProcessEvents\",  \r\n\"DeviceRegistryEvents\",\r\n\"DeviceFileCertificateInfo\",  \r\n\"EmailAttachmentInfo\",  \r\n\"EmailEvents\",  \r\n\"EmailPostDeliveryEvents\",  \r\n\"EmailUrlInfo\",\r\n\"IdentityLogonEvents\",\r\n\"IdentityQueryEvents\",\r\n\"IdentityDirectoryEvents\",\r\n\"AlertEvidence\",\r\n\"CloudAppEvents\"\r\n)   \r\n| summarize BillableDataGB = sum(Quantity) / 1024. by DataType\r\n| order by BillableDataGB desc\r\n",
+              "size": 0,
+              "timeContextFromParameter": "TimeRange",
+              "queryType": "advancedHunting",
+              "gridSettings": {
+                "formatters": [
+                  {
+                    "columnMatch": "BillableDataGB",
+                    "formatter": 3,
+                    "formatOptions": {
+                      "palette": "blue"
+                    }
+                  }
+                ]
+              }
+            },
+            "name": "query - 13"
+          },
+          {
+            "type": 1,
+            "content": {
+              "json": "<br>\r\n**Daily ingestion size (for eligible data sources) vs Maximum data grant:**"
+            },
+            "conditionalVisibilities": [
+              {
+                "parameterName": "TotalE5Seats",
+                "comparison": "isNotEqualTo",
+                "value": "0"
+              },
+              {
+                "parameterName": "TotalE5Seats",
+                "comparison": "isNotEqualTo"
+              }
+            ],
+            "name": "text - DailyIngestionVsAllocation"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "Usage\r\n| where IsBillable == true\n| extend Plan = case(column_ifexists(\"Plan\", \"\") in~ (\"Auxiliary\", \"DataLake\", \"Data Lake\"), \"Data Lake\", column_ifexists(\"Plan\", \"\") =~ \"Basic\", \"Basic\", \"Analytics\")\n| where Plan == \"Analytics\"\n| where DataType in (\"SigninLogs\", \r\n\"AuditLogs\", \r\n\"AADNonInteractiveUserSignInLogs\", \r\n\"AADServicePrincipalSignInLogs\",\r\n\"AADManagedIdentitySignInLogs\",\r\n\"AADProvisioningLogs\",\r\n\"ADFSSignInLogs\",\r\n\"McasShadowItReporting\", \r\n\"InformationProtectionLogs_CL\", \r\n\"DeviceEvents\",  \r\n\"DeviceFileEvents\",  \r\n\"DeviceImageLoadEvents\",  \r\n\"DeviceInfo\",  \r\n\"DeviceLogonEvents\",  \r\n\"DeviceNetworkEvents\",  \r\n\"DeviceNetworkInfo\",  \r\n\"DeviceProcessEvents\",  \r\n\"DeviceRegistryEvents\",\r\n\"DeviceFileCertificateInfo\",  \r\n\"EmailAttachmentInfo\",  \r\n\"EmailEvents\",  \r\n\"EmailPostDeliveryEvents\",  \r\n\"EmailUrlInfo\",\r\n\"IdentityLogonEvents\",\r\n\"IdentityQueryEvents\",\r\n\"IdentityDirectoryEvents\",\r\n\"AlertEvidence\",\r\n\"CloudAppEvents\")   \r\n| summarize DailyIngestionGB = toreal(sum(Quantity))/ 1024  by format_datetime(TimeGenerated, 'yyyy-MM-dd') \r\n| extend MaxDataGrantGB  = ((5*toreal({TotalE5Seats}))/1024)\r\n| sort by TimeGenerated asc\r\n",
+              "size": 0,
+              "aggregation": 3,
+              "timeContextFromParameter": "TimeRange",
+              "queryType": "advancedHunting",
+              "visualization": "linechart",
+              "chartSettings": {
+                "xAxis": "TimeGenerated",
+                "showDataPoints": true,
+                "ySettings": {
+                  "numberFormatSettings": {
+                    "unit": 0,
+                    "options": {
+                      "style": "decimal",
+                      "useGrouping": true,
+                      "maximumFractionDigits": 3
+                    }
+                  }
+                }
+              }
+            },
+            "conditionalVisibilities": [
+              {
+                "parameterName": "TotalE5Seats",
+                "comparison": "isNotEqualTo"
+              },
+              {
+                "parameterName": "TotalE5Seats",
+                "comparison": "isNotEqualTo",
+                "value": "0"
+              }
+            ],
+            "name": "DailyIngestionVSAllocation"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "Usage\r\n| where IsBillable == true\n| extend Plan = case(column_ifexists(\"Plan\", \"\") in~ (\"Auxiliary\", \"DataLake\", \"Data Lake\"), \"Data Lake\", column_ifexists(\"Plan\", \"\") =~ \"Basic\", \"Basic\", \"Analytics\")\n| where Plan == \"Analytics\"\n| where DataType in (\"SigninLogs\", \r\n\"AuditLogs\", \r\n\"AADNonInteractiveUserSignInLogs\", \r\n\"AADServicePrincipalSignInLogs\",\r\n\"AADManagedIdentitySignInLogs\",\r\n\"AADProvisioningLogs\",\r\n\"ADFSSignInLogs\",\r\n\"McasShadowItReporting\", \r\n\"InformationProtectionLogs_CL\", \r\n\"DeviceEvents\",  \r\n\"DeviceFileEvents\",  \r\n\"DeviceImageLoadEvents\",  \r\n\"DeviceInfo\",  \r\n\"DeviceLogonEvents\",  \r\n\"DeviceNetworkEvents\",  \r\n\"DeviceNetworkInfo\",  \r\n\"DeviceProcessEvents\",  \r\n\"DeviceRegistryEvents\",\r\n\"DeviceFileCertificateInfo\",  \r\n\"EmailAttachmentInfo\",  \r\n\"EmailEvents\",  \r\n\"EmailPostDeliveryEvents\",  \r\n\"EmailUrlInfo\",\r\n\"IdentityLogonEvents\",\r\n\"IdentityQueryEvents\",\r\n\"IdentityDirectoryEvents\",\r\n\"AlertEvidence\",\r\n\"CloudAppEvents\"\r\n)   \r\n| summarize TotalBillableDataGB = sum(Quantity) / 1024\r\n\r\n",
+              "size": 4,
+              "title": "Total ingestion",
+              "timeContextFromParameter": "TimeRange",
+              "queryType": "advancedHunting",
+              "visualization": "tiles",
+              "tileSettings": {
+                "titleContent": {
+                  "columnMatch": "TotalBillableDataGB",
+                  "formatter": 12,
+                  "formatOptions": {
+                    "palette": "greenRed"
+                  },
+                  "numberFormat": {
+                    "unit": 39,
+                    "options": {
+                      "style": "decimal",
+                      "maximumFractionDigits": 2
+                    }
+                  }
+                },
+                "showBorder": false
+              }
+            },
+            "customWidth": "20",
+            "name": "E5IngestionSize"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "let DailyMaxDiscountGB  = ((5*toreal({TotalE5Seats}))/1024);\r\nUsage\r\n| where IsBillable == true\n| extend Plan = case(column_ifexists(\"Plan\", \"\") in~ (\"Auxiliary\", \"DataLake\", \"Data Lake\"), \"Data Lake\", column_ifexists(\"Plan\", \"\") =~ \"Basic\", \"Basic\", \"Analytics\")\n| where Plan == \"Analytics\"\n| where DataType in (\"SigninLogs\", \r\n\"AuditLogs\", \r\n\"AADNonInteractiveUserSignInLogs\", \r\n\"AADServicePrincipalSignInLogs\",\r\n\"AADManagedIdentitySignInLogs\",\r\n\"AADProvisioningLogs\",\r\n\"ADFSSignInLogs\",\r\n\"McasShadowItReporting\", \r\n\"InformationProtectionLogs_CL\", \r\n\"DeviceEvents\",  \r\n\"DeviceFileEvents\",  \r\n\"DeviceImageLoadEvents\",  \r\n\"DeviceInfo\",  \r\n\"DeviceLogonEvents\",  \r\n\"DeviceNetworkEvents\",  \r\n\"DeviceNetworkInfo\",  \r\n\"DeviceProcessEvents\",  \r\n\"DeviceRegistryEvents\",\r\n\"DeviceFileCertificateInfo\",  \r\n\"EmailAttachmentInfo\",  \r\n\"EmailEvents\",  \r\n\"EmailPostDeliveryEvents\",  \r\n\"EmailUrlInfo\",\r\n\"IdentityLogonEvents\",\r\n\"IdentityQueryEvents\",\r\n\"IdentityDirectoryEvents\",\r\n\"AlertEvidence\",\r\n\"CloudAppEvents\")   \r\n| summarize DailyBillableGB = toreal(sum(Quantity))/ 1024  by format_datetime(TimeGenerated, 'yy-MM-dd') \r\n| extend DailyMaxGrantGB = DailyMaxDiscountGB\r\n| summarize MaxDataGrantGB = sum(toreal(DailyMaxGrantGB))\r\n\r\n",
+              "size": 4,
+              "title": "Total Data Grant Limit",
+              "timeContextFromParameter": "TimeRange",
+              "queryType": "advancedHunting",
+              "visualization": "tiles",
+              "tileSettings": {
+                "titleContent": {
+                  "columnMatch": "MaxDataGrantGB",
+                  "formatter": 12,
+                  "formatOptions": {
+                    "palette": "orangeBlue"
+                  },
+                  "numberFormat": {
+                    "unit": 39,
+                    "options": {
+                      "style": "decimal",
+                      "maximumFractionDigits": 2
+                    }
+                  }
+                },
+                "showBorder": false,
+                "sortOrderField": 1
+              }
+            },
+            "customWidth": "20",
+            "conditionalVisibilities": [
+              {
+                "parameterName": "TotalE5Seats",
+                "comparison": "isNotEqualTo"
+              },
+              {
+                "parameterName": "TotalE5Seats",
+                "comparison": "isNotEqualTo",
+                "value": "0"
+              }
+            ],
+            "name": "DataGrantLimit"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "let DailyMaxDiscountGB  = ((5*toreal({TotalE5Seats}))/1024);\r\nUsage\r\n| where IsBillable == true\n| extend Plan = case(column_ifexists(\"Plan\", \"\") in~ (\"Auxiliary\", \"DataLake\", \"Data Lake\"), \"Data Lake\", column_ifexists(\"Plan\", \"\") =~ \"Basic\", \"Basic\", \"Analytics\")\n| where Plan == \"Analytics\"\n| where DataType in (\"SigninLogs\", \r\n\"AuditLogs\", \r\n\"AADNonInteractiveUserSignInLogs\", \r\n\"AADServicePrincipalSignInLogs\",\r\n\"AADManagedIdentitySignInLogs\",\r\n\"AADProvisioningLogs\",\r\n\"ADFSSignInLogs\",\r\n\"McasShadowItReporting\", \r\n\"InformationProtectionLogs_CL\", \r\n\"DeviceEvents\",  \r\n\"DeviceFileEvents\",  \r\n\"DeviceImageLoadEvents\",  \r\n\"DeviceInfo\",  \r\n\"DeviceLogonEvents\",  \r\n\"DeviceNetworkEvents\",  \r\n\"DeviceNetworkInfo\",  \r\n\"DeviceProcessEvents\",  \r\n\"DeviceRegistryEvents\",\r\n\"DeviceFileCertificateInfo\",  \r\n\"EmailAttachmentInfo\",  \r\n\"EmailEvents\",  \r\n\"EmailPostDeliveryEvents\",  \r\n\"EmailUrlInfo\",\r\n\"IdentityLogonEvents\",\r\n\"IdentityQueryEvents\",\r\n\"IdentityDirectoryEvents\",\r\n\"AlertEvidence\",\r\n\"CloudAppEvents\")   \r\n| summarize DailyBillableGB = toreal(sum(Quantity))/ 1024  by format_datetime(TimeGenerated, 'yy-MM-dd') \r\n| summarize TotalEligibleGB = sum(iif(toreal(DailyBillableGB)>toreal(DailyMaxDiscountGB),toreal(DailyMaxDiscountGB),DailyBillableGB))\r\n\r\n",
+              "size": 4,
+              "title": "Total Data Grant Used",
+              "timeContextFromParameter": "TimeRange",
+              "queryType": "advancedHunting",
+              "visualization": "tiles",
+              "tileSettings": {
+                "titleContent": {
+                  "columnMatch": "TotalEligibleGB",
+                  "formatter": 12,
+                  "formatOptions": {
+                    "palette": "coldHot"
+                  },
+                  "numberFormat": {
+                    "unit": 39,
+                    "options": {
+                      "style": "decimal",
+                      "maximumFractionDigits": 2
+                    }
+                  }
+                },
+                "showBorder": false,
+                "sortOrderField": 1
+              }
+            },
+            "customWidth": "30",
+            "conditionalVisibilities": [
+              {
+                "parameterName": "TotalE5Seats",
+                "comparison": "isNotEqualTo"
+              },
+              {
+                "parameterName": "TotalE5Seats",
+                "comparison": "isNotEqualTo",
+                "value": "0"
+              }
+            ],
+            "name": "EligibleE5Ingestion"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "let DailyMaxDiscountGB  = ((5*toreal({TotalE5Seats}))/1024);\r\nUsage\r\n| where IsBillable == true\n| extend Plan = case(column_ifexists(\"Plan\", \"\") in~ (\"Auxiliary\", \"DataLake\", \"Data Lake\"), \"Data Lake\", column_ifexists(\"Plan\", \"\") =~ \"Basic\", \"Basic\", \"Analytics\")\n| where Plan == \"Analytics\"\n| where DataType in (\"SigninLogs\", \r\n\"AuditLogs\", \r\n\"AADNonInteractiveUserSignInLogs\", \r\n\"AADServicePrincipalSignInLogs\",\r\n\"AADManagedIdentitySignInLogs\",\r\n\"AADProvisioningLogs\",\r\n\"ADFSSignInLogs\",\r\n\"McasShadowItReporting\", \r\n\"InformationProtectionLogs_CL\", \r\n\"DeviceEvents\",  \r\n\"DeviceFileEvents\",  \r\n\"DeviceImageLoadEvents\",  \r\n\"DeviceInfo\",  \r\n\"DeviceLogonEvents\",  \r\n\"DeviceNetworkEvents\",  \r\n\"DeviceNetworkInfo\",  \r\n\"DeviceProcessEvents\",  \r\n\"DeviceRegistryEvents\",\r\n\"DeviceFileCertificateInfo\",  \r\n\"EmailAttachmentInfo\",  \r\n\"EmailEvents\",  \r\n\"EmailPostDeliveryEvents\",  \r\n\"EmailUrlInfo\",\r\n\"IdentityLogonEvents\",\r\n\"IdentityQueryEvents\",\r\n\"IdentityDirectoryEvents\",\r\n\"AlertEvidence\",\r\n\"CloudAppEvents\")   \r\n| summarize DailyBillableGB = toreal(sum(Quantity))/ 1024  by format_datetime(TimeGenerated, 'yy-MM-dd') \r\n| summarize TotalEligibleGB = sum(iif(toreal(DailyBillableGB)>toreal(DailyMaxDiscountGB),toreal(DailyMaxDiscountGB),DailyBillableGB))\r\n| extend TotalDiscount = toreal(TotalEligibleGB)*{Price}\r\n| project TotalDiscount\r\n\r\n",
+              "size": 4,
+              "title": "Estimated Saving",
+              "timeContextFromParameter": "TimeRange",
+              "queryType": "advancedHunting",
+              "visualization": "tiles",
+              "tileSettings": {
+                "titleContent": {
+                  "columnMatch": "TotalDiscount",
+                  "formatter": 12,
+                  "formatOptions": {
+                    "palette": "greenRed"
+                  },
+                  "numberFormat": {
+                    "unit": 0,
+                    "options": {
+                      "currency": "USD",
+                      "style": "currency",
+                      "maximumFractionDigits": 2
+                    }
+                  }
+                },
+                "showBorder": false
+              }
+            },
+            "customWidth": "20",
+            "conditionalVisibilities": [
+              {
+                "parameterName": "TotalE5Seats",
+                "comparison": "isNotEqualTo",
+                "value": "0"
+              },
+              {
+                "parameterName": "TotalE5Seats",
+                "comparison": "isNotEqualTo"
+              }
+            ],
+            "name": "EstimateE5Discount"
+          }
+        ]
+      },
+      "name": "E5 Benefits"
+    },
+    {
+      "type": 12,
+      "content": {
+        "version": "NotebookGroup/1.0",
+        "groupType": "editable",
+        "items": [
+          {
+            "type": 1,
+            "content": {
+              "json": "## Microsoft Sentinel benefit for Defender for Cloud Servers Plan 2\r\n\r\nWith security information and event management (SIEM) and extended detection and response (XDR) from Microsoft, you’re armed with the context and automation you need to stop sophisticated, cross-domain attacks across your entire organization. \r\n\r\nMicrosoft Defender for Cloud Plan 2 customers can get data grant up to 500MB per server/day of Microsoft Defender For Cloud data ingestion into Microsoft Sentinel.\r\nThe data sources included in this offer include::\r\n\r\n- SecurityAlert\r\n- SecurityBaseline\r\n- SecurityBaselineSummary\r\n- SecurityDetection\r\n- SecurityEvent\r\n- WindowsFirewall\r\n- ProtectionStatus\r\n- Update and UpdateSummary when the Update Management solution isn't running in the workspace or solution targeting is enabled.\r\n- MDCFileIntegrityMonitoringEvents\r\n\r\nThe data grant will be calculated at the end of the month and applied to your bill, covering the cost of up to 500 MB of data ingestion per server/day.\r\n\r\nVisit https://learn.microsoft.com/en-us/azure/defender-for-cloud/data-ingestion-benefit for more information\r\n\r\n<br>\r\n\r\n### Below are the ingestion for the eligible data sources:\r\n\r\n_**Note:** Kindly specify **Total Servers for Servers seat** and **Ingestion Price** parameters for calculation._"
+            },
+            "name": "MdcPlan2 Intro"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "Usage\r\n| where IsBillable == true\n| extend Plan = case(column_ifexists(\"Plan\", \"\") in~ (\"Auxiliary\", \"DataLake\", \"Data Lake\"), \"Data Lake\", column_ifexists(\"Plan\", \"\") =~ \"Basic\", \"Basic\", \"Analytics\")\n| where Plan == \"Analytics\"\n| where DataType in (\"SecurityAlert\", \r\n\"SecurityBaseline\",\r\n\"SecurityBaselineSummary\",\r\n\"SecurityDetection\",\r\n\"SecurityEvent\",\r\n\"WindowsFirewall\",\r\n\"ProtectionStatus\",\r\n\"MDCFileIntegrityMonitoringEvents\"\r\n)   \r\n| summarize BillableDataGB = sum(Quantity) / 1024. by DataType\r\n| order by BillableDataGB desc\r\n",
+              "size": 0,
+              "timeContextFromParameter": "TimeRange",
+              "queryType": "advancedHunting",
+              "gridSettings": {
+                "formatters": [
+                  {
+                    "columnMatch": "BillableDataGB",
+                    "formatter": 3,
+                    "formatOptions": {
+                      "palette": "blue"
+                    }
+                  }
+                ]
+              }
+            },
+            "name": "MdcPlan2 Ingestion"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "Usage\r\n| where IsBillable == true\n| extend Plan = case(column_ifexists(\"Plan\", \"\") in~ (\"Auxiliary\", \"DataLake\", \"Data Lake\"), \"Data Lake\", column_ifexists(\"Plan\", \"\") =~ \"Basic\", \"Basic\", \"Analytics\")\n| where Plan == \"Analytics\"\n| where DataType in (\"SecurityAlert\", \r\n\"SecurityBaseline\",\r\n\"SecurityBaselineSummary\",\r\n\"SecurityDetection\",\r\n\"SecurityEvent\",\r\n\"WindowsFirewall\",\r\n\"ProtectionStatus\",\r\n\"MDCFileIntegrityMonitoringEvents\")   \r\n| summarize DailyIngestionGB = toreal(sum(Quantity))/ 1024  by format_datetime(TimeGenerated, 'yyyy-MM-dd') \r\n| extend MaxDataGrantGB  = ((500*toreal({TotalMdcPlan2}))/1024)\r\n| sort by TimeGenerated asc\r\n",
+              "size": 0,
+              "aggregation": 3,
+              "title": "Daily ingestion size (for eligible data sources) vs Maximum data grant:",
+              "timeContextFromParameter": "TimeRange",
+              "queryType": "advancedHunting",
+              "visualization": "linechart",
+              "chartSettings": {
+                "xAxis": "TimeGenerated",
+                "showDataPoints": true,
+                "ySettings": {
+                  "numberFormatSettings": {
+                    "unit": 0,
+                    "options": {
+                      "style": "decimal",
+                      "useGrouping": true,
+                      "maximumFractionDigits": 3
+                    }
+                  }
+                }
+              }
+            },
+            "conditionalVisibilities": [
+              {
+                "parameterName": "TotalMdcPlan2",
+                "comparison": "isNotEqualTo"
+              },
+              {
+                "parameterName": "TotalMdcPlan2",
+                "comparison": "isNotEqualTo",
+                "value": "0"
+              }
+            ],
+            "name": "MdcPlan2DailyIngestionVSAllocation"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "Usage\r\n| where IsBillable == true\n| extend Plan = case(column_ifexists(\"Plan\", \"\") in~ (\"Auxiliary\", \"DataLake\", \"Data Lake\"), \"Data Lake\", column_ifexists(\"Plan\", \"\") =~ \"Basic\", \"Basic\", \"Analytics\")\n| where Plan == \"Analytics\"\n| where DataType in (\"SecurityAlert\", \r\n\"SecurityBaseline\",\r\n\"SecurityBaselineSummary\",\r\n\"SecurityDetection\",\r\n\"SecurityEvent\",\r\n\"WindowsFirewall\",\r\n\"ProtectionStatus\",\r\n\"MDCFileIntegrityMonitoringEvents\"\r\n)   \r\n| summarize TotalBillableDataGB = sum(Quantity) / 1024\r\n\r\n",
+              "size": 4,
+              "title": "Total ingestion",
+              "timeContextFromParameter": "TimeRange",
+              "queryType": "advancedHunting",
+              "visualization": "tiles",
+              "tileSettings": {
+                "titleContent": {
+                  "columnMatch": "TotalBillableDataGB",
+                  "formatter": 12,
+                  "formatOptions": {
+                    "palette": "greenRed"
+                  },
+                  "numberFormat": {
+                    "unit": 39,
+                    "options": {
+                      "style": "decimal",
+                      "maximumFractionDigits": 2
+                    }
+                  }
+                },
+                "showBorder": false
+              }
+            },
+            "customWidth": "20",
+            "name": "MdCP2IngestionSize"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "let DailyMaxDiscountGB  = ((500*toreal({TotalMdcPlan2}))/1024);\r\nUsage\r\n| where IsBillable == true\n| extend Plan = case(column_ifexists(\"Plan\", \"\") in~ (\"Auxiliary\", \"DataLake\", \"Data Lake\"), \"Data Lake\", column_ifexists(\"Plan\", \"\") =~ \"Basic\", \"Basic\", \"Analytics\")\n| where Plan == \"Analytics\"\n| where DataType in (\"SecurityAlert\", \r\n\"SecurityBaseline\",\r\n\"SecurityBaselineSummary\",\r\n\"SecurityDetection\",\r\n\"SecurityEvent\",\r\n\"WindowsFirewall\",\r\n\"ProtectionStatus\",\r\n\"MDCFileIntegrityMonitoringEvents\")   \r\n| summarize DailyBillableGB = toreal(sum(Quantity))/ 1024  by format_datetime(TimeGenerated, 'yy-MM-dd') \r\n| extend DailyMaxGrantGB = DailyMaxDiscountGB\r\n| summarize MaxDataGrantGB = sum(toreal(DailyMaxGrantGB))\r\n\r\n",
+              "size": 4,
+              "title": "Total Data Grant Limit",
+              "timeContextFromParameter": "TimeRange",
+              "queryType": "advancedHunting",
+              "visualization": "tiles",
+              "tileSettings": {
+                "titleContent": {
+                  "columnMatch": "MaxDataGrantGB",
+                  "formatter": 12,
+                  "formatOptions": {
+                    "palette": "orangeBlue"
+                  },
+                  "numberFormat": {
+                    "unit": 39,
+                    "options": {
+                      "style": "decimal",
+                      "maximumFractionDigits": 2
+                    }
+                  }
+                },
+                "showBorder": false,
+                "sortOrderField": 1
+              }
+            },
+            "customWidth": "20",
+            "conditionalVisibilities": [
+              {
+                "parameterName": "TotalMdcPlan2",
+                "comparison": "isNotEqualTo"
+              },
+              {
+                "parameterName": "TotalMdcPlan2",
+                "comparison": "isNotEqualTo",
+                "value": "0"
+              }
+            ],
+            "name": "MdCP2DataGrantLimit"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "let DailyMaxDiscountGB  = ((500*toreal({TotalMdcPlan2}))/1024);\r\nUsage\r\n| where IsBillable == true\n| extend Plan = case(column_ifexists(\"Plan\", \"\") in~ (\"Auxiliary\", \"DataLake\", \"Data Lake\"), \"Data Lake\", column_ifexists(\"Plan\", \"\") =~ \"Basic\", \"Basic\", \"Analytics\")\n| where Plan == \"Analytics\"\n| where DataType in (\"SecurityAlert\", \r\n\"SecurityBaseline\",\r\n\"SecurityBaselineSummary\",\r\n\"SecurityDetection\",\r\n\"SecurityEvent\",\r\n\"WindowsFirewall\",\r\n\"ProtectionStatus\",\r\n\"MDCFileIntegrityMonitoringEvents\")   \r\n| summarize DailyBillableGB = toreal(sum(Quantity))/ 1024  by format_datetime(TimeGenerated, 'yy-MM-dd') \r\n| summarize TotalEligibleGB = sum(iif(toreal(DailyBillableGB)>toreal(DailyMaxDiscountGB),toreal(DailyMaxDiscountGB),DailyBillableGB))\r\n\r\n",
+              "size": 4,
+              "title": "Total Data Grant Used",
+              "timeContextFromParameter": "TimeRange",
+              "queryType": "advancedHunting",
+              "visualization": "tiles",
+              "tileSettings": {
+                "titleContent": {
+                  "columnMatch": "TotalEligibleGB",
+                  "formatter": 12,
+                  "formatOptions": {
+                    "palette": "coldHot"
+                  },
+                  "numberFormat": {
+                    "unit": 39,
+                    "options": {
+                      "style": "decimal",
+                      "maximumFractionDigits": 2
+                    }
+                  }
+                },
+                "showBorder": false,
+                "sortOrderField": 1
+              }
+            },
+            "customWidth": "30",
+            "conditionalVisibilities": [
+              {
+                "parameterName": "TotalMdcPlan2",
+                "comparison": "isNotEqualTo"
+              },
+              {
+                "parameterName": "TotalMdcPlan2",
+                "comparison": "isNotEqualTo",
+                "value": "0"
+              }
+            ],
+            "name": "EligibleMdcPlan2Ingestion"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "let DailyMaxDiscountGB  = ((500*toreal({TotalMdcPlan2}))/1024);\r\nUsage\r\n| where IsBillable == true\n| extend Plan = case(column_ifexists(\"Plan\", \"\") in~ (\"Auxiliary\", \"DataLake\", \"Data Lake\"), \"Data Lake\", column_ifexists(\"Plan\", \"\") =~ \"Basic\", \"Basic\", \"Analytics\")\n| where Plan == \"Analytics\"\n| where DataType in (\"SecurityAlert\", \r\n\"SecurityBaseline\",\r\n\"SecurityBaselineSummary\",\r\n\"SecurityDetection\",\r\n\"SecurityEvent\",\r\n\"WindowsFirewall\",\r\n\"ProtectionStatus\",\r\n\"MDCFileIntegrityMonitoringEvents\")   \r\n| summarize DailyBillableGB = toreal(sum(Quantity))/ 1024  by format_datetime(TimeGenerated, 'yy-MM-dd') \r\n| summarize TotalEligibleGB = sum(iif(toreal(DailyBillableGB)>toreal(DailyMaxDiscountGB),toreal(DailyMaxDiscountGB),DailyBillableGB))\r\n| extend TotalDiscount = toreal(TotalEligibleGB)*{Price}\r\n| project TotalDiscount\r\n\r\n",
+              "size": 4,
+              "title": "Estimated Saving",
+              "timeContextFromParameter": "TimeRange",
+              "queryType": "advancedHunting",
+              "visualization": "tiles",
+              "tileSettings": {
+                "titleContent": {
+                  "columnMatch": "TotalDiscount",
+                  "formatter": 12,
+                  "formatOptions": {
+                    "palette": "greenRed"
+                  },
+                  "numberFormat": {
+                    "unit": 0,
+                    "options": {
+                      "currency": "USD",
+                      "style": "currency",
+                      "maximumFractionDigits": 2
+                    }
+                  }
+                },
+                "showBorder": false
+              }
+            },
+            "customWidth": "20",
+            "conditionalVisibilities": [
+              {
+                "parameterName": "TotalMdcPlan2",
+                "comparison": "isNotEqualTo",
+                "value": "0"
+              },
+              {
+                "parameterName": "TotalMdcPlan2",
+                "comparison": "isNotEqualTo"
+              }
+            ],
+            "name": "EstimateMdcPlan2Discount"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "Usage\n| take 1\n| extend LicenseCost = 15*toreal({TotalMdcPlan2}) * datetime_diff('day', {TimeRange:end}, {TimeRange:start}) / 30.0\n| project LicenseCost",
+              "size": 4,
+              "title": "Defender for Servers Plan 2 licensing cost for {TimeRange}",
+              "timeContextFromParameter": "TimeRange",
+              "queryType": "advancedHunting",
+              "visualization": "tiles",
+              "tileSettings": {
+                "titleContent": {
+                  "columnMatch": "LicenseCost",
+                  "formatter": 12,
+                  "formatOptions": {
+                    "palette": "redGreen"
+                  },
+                  "numberFormat": {
+                    "unit": 0,
+                    "options": {
+                      "currency": "USD",
+                      "style": "currency",
+                      "maximumFractionDigits": 0
+                    }
+                  }
+                },
+                "showBorder": false,
+                "sortCriteriaField": "LicenseCost"
+              }
+            },
+            "customWidth": "20",
+            "conditionalVisibilities": [
+              {
+                "parameterName": "TotalMdcPlan2",
+                "comparison": "isNotEqualTo",
+                "value": "0"
+              },
+              {
+                "parameterName": "TotalMdcPlan2",
+                "comparison": "isNotEqualTo"
+              }
+            ],
+            "name": "MdcPlan2LicenseCost"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "let DailyMaxDiscountGB  = ((500*toreal({TotalMdcPlan2}))/1024);\r\nlet LicenseCost = 15*toreal({TotalMdcPlan2}) * datetime_diff('day', {TimeRange:end}, {TimeRange:start}) / 30.0;\r\nUsage\r\n| where IsBillable == true\n| extend Plan = case(column_ifexists(\"Plan\", \"\") in~ (\"Auxiliary\", \"DataLake\", \"Data Lake\"), \"Data Lake\", column_ifexists(\"Plan\", \"\") =~ \"Basic\", \"Basic\", \"Analytics\")\n| where Plan == \"Analytics\"\n| where DataType in (\"SecurityAlert\", \r\n\"SecurityBaseline\",\r\n\"SecurityBaselineSummary\",\r\n\"SecurityDetection\",\r\n\"SecurityEvent\",\r\n\"WindowsFirewall\",\r\n\"ProtectionStatus\",\r\n\"MDCFileIntegrityMonitoringEvents\")   \r\n| summarize DailyBillableGB = toreal(sum(Quantity))/ 1024  by format_datetime(TimeGenerated, 'yy-MM-dd') \r\n| summarize TotalEligibleGB = sum(iif(toreal(DailyBillableGB)>toreal(DailyMaxDiscountGB),toreal(DailyMaxDiscountGB),DailyBillableGB))\r\n| extend TotalDiscount = toreal(TotalEligibleGB)*{Price}\r\n| project TotalDiscount - LicenseCost\r\n\r\n",
+              "size": 4,
+              "title": "Estimated Savings After Licensing Cost",
+              "timeContextFromParameter": "TimeRange",
+              "queryType": "advancedHunting",
+              "visualization": "tiles",
+              "tileSettings": {
+                "titleContent": {
+                  "columnMatch": "Column1",
+                  "formatter": 18,
+                  "formatOptions": {
+                    "thresholdsOptions": "icons",
+                    "thresholdsGrid": [
+                      {
+                        "operator": "<",
+                        "thresholdValue": "0",
+                        "representation": "dot-red",
+                        "text": "{0}{1}"
+                      },
+                      {
+                        "operator": ">",
+                        "thresholdValue": "0",
+                        "representation": "dot-green",
+                        "text": "{0}{1}"
+                      },
+                      {
+                        "operator": "Default",
+                        "thresholdValue": null,
+                        "representation": "Line",
+                        "text": "{0}{1}"
+                      }
+                    ]
+                  },
+                  "numberFormat": {
+                    "unit": 0,
+                    "options": {
+                      "currency": "USD",
+                      "style": "currency",
+                      "useGrouping": true,
+                      "maximumFractionDigits": 2
+                    }
+                  }
+                },
+                "showBorder": false,
+                "sortCriteriaField": "Column1",
+                "size": "auto"
+              }
+            },
+            "customWidth": "20",
+            "conditionalVisibilities": [
+              {
+                "parameterName": "TotalMdcPlan2",
+                "comparison": "isNotEqualTo",
+                "value": "0"
+              },
+              {
+                "parameterName": "TotalMdcPlan2",
+                "comparison": "isNotEqualTo"
+              }
+            ],
+            "name": "MdcPlan2NetSavings"
+          }
+        ]
+      },
+      "name": "Defender for Cloud Plan 2 Ingestion Benefit"
+    },
+    {
+      "type": 1,
+      "content": {
+        "json": "## SOAR summary\r\n\r\nIn this section, you can view billable information regarding your Logic Apps. The data is based on Logic Apps' built-in metrics. To view the list of Logic Apps click the \">\" icon in the subscription column.\r\n\r\nYou can change the default Logic App execution cost in the parameter below.\r\n\r\nTo see the approximate cost of your logic apps, **click on any subscription on the table below**.\r\n\r\nFor more billable information, visit: https://azure.microsoft.com/pricing/details/logic-apps/"
+      },
+      "name": "text - 3"
+    },
+    {
+      "type": 9,
+      "content": {
+        "version": "KqlParameterItem/1.0",
+        "parameters": [
+          {
+            "id": "6f50ee54-8f0e-424e-9e16-70eca531af7f",
+            "version": "KqlParameterItem/1.0",
+            "name": "ResourceTypes",
+            "label": "Resource types",
+            "type": 7,
+            "isRequired": true,
+            "multiSelect": true,
+            "quote": "'",
+            "delimiter": ",",
+            "value": [
+              "microsoft.logic/workflows"
+            ],
+            "isHiddenWhenLocked": true,
+            "typeSettings": {
+              "includeAll": true
+            },
+            "timeContext": {
+              "durationMs": 86400000
+            }
+          },
+          {
+            "id": "f103ef04-042e-45ed-8f78-b31e676258d7",
+            "version": "KqlParameterItem/1.0",
+            "name": "ResourceGroups",
+            "label": "Resource groups",
+            "type": 2,
+            "isRequired": true,
+            "multiSelect": true,
+            "quote": "'",
+            "delimiter": ",",
+            "query": "Resources\r\n| where type in~ ({ResourceTypes})\r\n| summarize Count = count() by subscriptionId, resourceGroup\r\n| order by Count desc\r\n| extend Rank = row_number()\r\n| project value = strcat('/subscriptions/', subscriptionId, '/resourceGroups/', resourceGroup), label = resourceGroup, selected = false",
+            "typeSettings": {
+              "additionalResourceOptions": [
+                "value::all"
+              ],
+              "showDefault": false
+            },
+            "timeContext": {
+              "durationMs": 86400000
+            },
+            "defaultValue": "value::all",
+            "queryType": 1,
+            "resourceType": "microsoft.resourcegraph/resources",
+            "value": [
+              "value::all"
+            ]
+          },
+          {
+            "id": "b6514d02-8893-44b8-896e-e53ada5024d5",
+            "version": "KqlParameterItem/1.0",
+            "name": "Resources",
+            "label": "Logic Apps",
+            "type": 5,
+            "isRequired": true,
+            "multiSelect": true,
+            "quote": "'",
+            "delimiter": ",",
+            "query": "Resources\r\n| where type in~({ResourceTypes})\r\n| extend resourceGroupId = strcat('/subscriptions/', subscriptionId, '/resourceGroups/', resourceGroup)\r\n| where resourceGroupId in~({ResourceGroups}) or '*' in~({ResourceGroups})\r\n| order by name asc\r\n| extend Rank = row_number()\r\n| project value = id, label = tostring(name), selected = Rank <= 10, group = resourceGroup",
+            "value": [
+              "value::all"
+            ],
+            "typeSettings": {
+              "additionalResourceOptions": [
+                "value::all"
+              ],
+              "showDefault": false
+            },
+            "timeContext": {
+              "durationMs": 86400000
+            },
+            "queryType": 1,
+            "resourceType": "microsoft.resourcegraph/resources"
+          },
+          {
+            "id": "8f552e99-2d30-4679-b4b0-25429bf0216b",
+            "version": "KqlParameterItem/1.0",
+            "name": "ExecutionCost",
+            "label": "Logic App execution cost",
+            "type": 1,
+            "isRequired": true,
+            "value": "0.000125"
+          }
+        ],
+        "style": "pills"
+      },
+      "name": "parameters - 10"
+    },
+    {
+      "type": 10,
+      "content": {
+        "chartId": "workbooke70b7cbc-f1d7-4a74-b8b9-75cc8d5ab586",
+        "version": "MetricsItem/2.0",
+        "size": 1,
+        "chartType": 0,
+        "resourceType": "microsoft.logic/workflows",
+        "metricScope": 0,
+        "resourceParameter": "Resources",
+        "resourceIds": [
+          "{Resources}"
+        ],
+        "timeContextFromParameter": "TimeRange",
+        "timeContext": {
+          "durationMs": 7776000000
+        },
+        "metrics": [
+          {
+            "namespace": "microsoft.logic/workflows",
+            "metric": "microsoft.logic/workflows--TotalBillableExecutions",
+            "aggregation": 1
+          }
+        ],
+        "title": "Click on a subscription below to calculate the estimated automation costs",
+        "resourceLimit": 10000,
+        "gridSettings": {
+          "formatters": [
+            {
+              "columnMatch": "$gen_group",
+              "formatter": 15,
+              "formatOptions": {
+                "showIcon": true,
+                "customColumnWidthSetting": "10fr"
+              }
+            },
+            {
+              "columnMatch": "Subscription",
+              "formatter": 5
+            },
+            {
+              "columnMatch": "Name",
+              "formatter": 13,
+              "formatOptions": {
+                "linkTarget": "Resource",
+                "showIcon": true,
+                "customColumnWidthSetting": "10fr"
+              }
+            },
+            {
+              "columnMatch": "microsoft.logic/workflows--TotalBillableExecutions",
+              "formatter": 8,
+              "formatOptions": {
+                "palette": "blue",
+                "aggregation": "Sum",
+                "customColumnWidthSetting": "15fr"
+              }
+            },
+            {
+              "columnMatch": "microsoft.logic/workflows--TotalBillableExecutions Timeline",
+              "formatter": 21,
+              "formatOptions": {
+                "palette": "blue",
+                "customColumnWidthSetting": "15fr"
+              }
+            },
+            {
+              "columnMatch": "microsoft.logic/workflows--BillableTriggerExecutions Timeline",
+              "formatter": 5
+            },
+            {
+              "columnMatch": "microsoft.logic/workflows--BillableActionExecutions",
+              "formatter": 8,
+              "formatOptions": {
+                "palette": "blue"
+              },
+              "numberFormat": {
+                "unit": 0,
+                "options": {
+                  "style": "decimal"
+                }
+              }
+            },
+            {
+              "columnMatch": "microsoft.logic/workflows--BillableActionExecutions Timeline",
+              "formatter": 5
+            },
+            {
+              "columnMatch": "RG",
+              "formatter": 13,
+              "formatOptions": {
+                "showIcon": true
+              }
+            },
+            {
+              "columnMatch": "Sum",
+              "formatter": 1,
+              "formatOptions": {
+                "aggregation": "Sum"
+              },
+              "numberFormat": {
+                "unit": 0,
+                "options": {
+                  "style": "decimal"
+                }
+              }
+            }
+          ],
+          "rowLimit": 10000,
+          "filter": true,
+          "hierarchySettings": {
+            "treeType": 1,
+            "groupBy": [
+              "Subscription"
+            ]
+          },
+          "labelSettings": [
+            {
+              "columnId": "microsoft.logic/workflows--TotalBillableExecutions",
+              "label": "Total Billable Executions (Sum)"
+            },
+            {
+              "columnId": "microsoft.logic/workflows--TotalBillableExecutions Timeline",
+              "label": "Total Billable Executions Timeline"
+            }
+          ]
+        },
+        "exportFieldName": "microsoft.logic/workflows--TotalBillableExecutions",
+        "exportParameterName": "Total",
+        "exportDefaultValue": "0"
+      },
+      "customWidth": "60",
+      "name": "Billable Metric"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "Usage | take 1 | project ['Estimated automation costs'] ={Total}*{ExecutionCost}",
+        "size": 4,
+        "title": "Estimated Logic App execution cost over the last {TimeRange}",
+        "timeContext": {
+          "durationMs": 86400000
+        },
+        "queryType": "advancedHunting",
+        "visualization": "tiles",
+        "tileSettings": {
+          "titleContent": {
+            "columnMatch": "Estimated automation costs",
+            "formatter": 12,
+            "formatOptions": {
+              "palette": "greenRed"
+            },
+            "numberFormat": {
+              "unit": 0,
+              "options": {
+                "currency": "USD",
+                "style": "currency",
+                "minimumFractionDigits": 2,
+                "maximumFractionDigits": 3
+              }
+            }
+          },
+          "showBorder": false
+        }
+      },
+      "conditionalVisibility": {
+        "parameterName": "Total",
+        "comparison": "isNotEqualTo"
+      },
+      "name": "query - 11"
+    }
+  ],
+  "fromTemplateId": "sentinel-CostWorkbook",
+  "$schema": "https://github.com/Microsoft/Application-Insights-Workbooks/blob/master/schema/workbook.json",
+  "xdrMetadata": {
+    "contentId": "dafd4964-dd34-5c98-880a-5181d81f39b5",
+    "instanceId": "88295ce3-da78-5bec-9c0f-0b52fec48706",
+    "version": "3.2.2",
+    "schemaVersion": "1.0.0",
+    "displayName": "Microsoft Sentinel Cost"
+  },
+  "contentProvenance": {
+    "format": "public-workbook-v1",
+    "origin": "sentinel-migration",
+    "requiredWorkloads": [
+      {
+        "workload": "sentinel",
+        "dataTypes": [
+          "AzureDiagnostics",
+          "Usage"
+        ]
+      }
+    ],
+    "requiredDataConnectors": [
+      {
+        "connectorId": "MicrosoftSentinel",
+        "dataTypes": [
+          "AzureDiagnostics",
+          "Usage"
+        ]
+      }
+    ],
+    "requiredWorkspaceFunctions": []
+  }
+}
