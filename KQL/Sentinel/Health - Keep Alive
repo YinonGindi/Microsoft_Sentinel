@@ -1,0 +1,70 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "workspace": {
+            "type": "String"
+        }
+    },
+    "resources": [
+        {
+            "id": "[concat(resourceId('Microsoft.OperationalInsights/workspaces/providers', parameters('workspace'), 'Microsoft.SecurityInsights'),'/alertRules/796ecc9d-ecf2-4578-b9a6-75d74f029b1a')]",
+            "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/796ecc9d-ecf2-4578-b9a6-75d74f029b1a')]",
+            "type": "Microsoft.OperationalInsights/workspaces/providers/alertRules",
+            "kind": "Scheduled",
+            "apiVersion": "2023-12-01-preview",
+            "properties": {
+                "displayName": "SecOps - Keep Alive Process",
+                "description": "Detects when a product or table stopped reporting to Sentinel",
+                "severity": "Medium",
+                "enabled": true,
+                "query": "let DSM = (tableName:string, SearchKeyFactor:string, KeyType:string) {\n    table(tableName)\n    | where ingestion_time() > ago(7h)\n    | extend Key = tostring(column_ifexists(SearchKeyFactor, \"none\"))\n    | extend IsBillable = tobool(column_ifexists(\"IsBillable\", \"true\"))\n    | where IsBillable\n    | where isnotempty(Key)\n    | summarize LastSeen = max(TimeGenerated) by Key\n    | extend SilentFor = now() - LastSeen\n    | where SilentFor > 65m and SilentFor <= 2d\n    | extend\n        Tier = \"N/A\",\n        AvgMBPerDay = real(null),\n        Threshold = 65m,\n        Message = strcat(\n            Key, \" \", KeyType,\n            \" has stopped reporting for \",\n            round(SilentFor / 1m, 0),\n            \" minutes on \", tableName\n        ),\n        Title = strcat(\"SecOps - \", tableName, \" Issue Detected\")\n    | project\n        Title,\n        Message,\n        TableName = tableName,\n        Key,\n        Tier,\n        AvgMBPerDay,\n        LastSeen,\n        SilentMinutes = round(SilentFor / 1m, 0),\n        ThresholdMinutes = Threshold / 1m\n};\nlet UsageMonitoring =\n    Usage\n    | where TimeGenerated > ago(7d)\n    | where Quantity > 0\n    | where DataType !in (\n        \"AADUserRiskEvents\",\n        \"AADRiskyUsers\",\n        \"AADProvisioningLogs\",\n        \"IdentityInfo\",\n        \"Operation\",\n        \"UserPeerAnalytics\",\n        \"Anomalies\",\n        \"SentinelAudit\",\n        \"DCRLogErrors\")\n    | where DataType !startswith \"IntuneDevic\"\n    | summarize\n        TotalMB = sum(Quantity),\n        FirstSeen = min(StartTime),\n        LastSeen = max(EndTime)\n        by DataType\n    | extend ObservedDays = max_of(1.0, (now() - FirstSeen) / 1d)\n    | extend AvgMBPerDay = TotalMB / ObservedDays\n    | extend Tier = case(\n        AvgMBPerDay >= 1024, \"High\",\n        AvgMBPerDay >= 100,  \"Medium\",\n                             \"Low\"\n    )\n    | extend Threshold = case(\n        Tier == \"High\",   4h,\n        Tier == \"Medium\", 12h,\n                          24h\n    )\n    | extend SilentFor = now() - LastSeen\n    | where SilentFor > Threshold and SilentFor <= 2d\n    | extend\n        Key = DataType,\n        Message = strcat(DataType,\" table has stopped reporting for \",round(SilentFor / 1h, 1),\" hours\"),\n        Title = \"SecOps - Table Issue Detected\"\n    | project\n        Title,\n        Message,\n        TableName = \"Usage\",\n        Key,\n        Tier,\n        AvgMBPerDay = round(AvgMBPerDay, 2),\n        LastSeen,\n        SilentMinutes = round(SilentFor / 1m, 0),\n        ThresholdMinutes = Threshold / 1m;\nunion isfuzzy=true\n    DSM(\"AWSCloudTrail\", \"RecipientAccountId\", \"account\"),\n    DSM(\"AWSS3ServerAccess\", \"Bucket\", \"bucket\"),\n    UsageMonitoring\n| order by SilentMinutes desc",
+                "queryFrequency": "PT6H",
+                "queryPeriod": "P7D",
+                "triggerOperator": "GreaterThan",
+                "triggerThreshold": 0,
+                "suppressionDuration": "PT5H",
+                "suppressionEnabled": false,
+                "startTimeUtc": null,
+                "tactics": [
+                    "DefenseEvasion"
+                ],
+                "techniques": [
+                    "T1629"
+                ],
+                "subTechniques": [
+                    "T1629.003"
+                ],
+                "alertRuleTemplateName": null,
+                "incidentConfiguration": {
+                    "createIncident": false,
+                    "groupingConfiguration": {
+                        "enabled": true,
+                        "reopenClosedIncident": false,
+                        "lookbackDuration": "PT5H",
+                        "matchingMethod": "Selected",
+                        "groupByEntities": [],
+                        "groupByAlertDetails": [],
+                        "groupByCustomDetails": [
+                            "Key"
+                        ]
+                    }
+                },
+                "eventGroupingSettings": {
+                    "aggregationKind": "SingleAlert"
+                },
+                "alertDetailsOverride": {
+                    "alertDisplayNameFormat": "{{Title}}",
+                    "alertDescriptionFormat": "{{Message}}",
+                    "alertDynamicProperties": []
+                },
+                "customDetails": {
+                    "Key": "Key"
+                },
+                "entityMappings": null,
+                "sentinelEntitiesMappings": null,
+                "templateVersion": null
+            }
+        }
+    ]
+}
