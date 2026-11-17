@@ -1,0 +1,560 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "location": {
+            "type": "string",
+            "minLength": 1,
+            "defaultValue": "[resourceGroup().location]",
+            "metadata": {
+                "description": "Not used directly - required only to satisfy the arm-ttk 'Location-Should-Not-Be-Hardcoded' rule. The 'workspace-location' parameter controls where resources are actually deployed."
+            }
+        },
+        "workspace-location": {
+            "type": "string",
+            "defaultValue": "",
+            "metadata": {
+                "description": "Azure region of the Log Analytics / Microsoft Sentinel workspace, e.g. 'eastus'. Must match the workspace's own region and the region of its Data Collection Endpoint."
+            }
+        },
+        "subscription": {
+            "defaultValue": "[last(split(subscription().id, '/'))]",
+            "type": "string",
+            "metadata": {
+                "description": "Subscription ID where Microsoft Sentinel is configured."
+            }
+        },
+        "resourceGroupName": {
+            "defaultValue": "[resourceGroup().name]",
+            "type": "string",
+            "metadata": {
+                "description": "Resource group name where Microsoft Sentinel is configured."
+            }
+        },
+        "workspace": {
+            "defaultValue": "",
+            "type": "string",
+            "metadata": {
+                "description": "Name (not resource ID) of the Log Analytics workspace that has Microsoft Sentinel enabled."
+            }
+        }
+    },
+    "variables": {
+        "workspaceResourceId": "[resourceId('microsoft.OperationalInsights/Workspaces', parameters('workspace'))]",
+        "location": "[parameters('workspace-location')]",
+        "_solutionName": "Microsoft Teams Call Records (CCF)",
+        "_solutionVersion": "1.0.0",
+        "_solutionAuthor": "Your Organization",
+        "_packageIcon": "",
+        "_solutionId": "yourorg.azure-sentinel-solution-yourorg.azure-sentinel-teamscallrecordsccf",
+        "dataConnectorVersionConnectorDefinition": "1.0.0",
+        "dataConnectorVersionConnections": "1.0.0",
+        "_solutionTier": "Community",
+        "_dataConnectorContentIdConnectorDefinition": "TeamsCallRecordsCCFConnectorDefinition",
+        "dataConnectorTemplateNameConnectorDefinition": "[concat(parameters('workspace'),'-dc-',uniquestring(variables('_dataConnectorContentIdConnectorDefinition')))]",
+        "_dataConnectorContentIdConnections": "TeamsCallRecordsCCFConnections",
+        "dataConnectorTemplateNameConnections": "[concat(parameters('workspace'),'-dc-',uniquestring(variables('_dataConnectorContentIdConnections')))]",
+        "_tableName": "TeamsCallRecords_CL",
+        "_dcrName": "TeamsCallRecordsDCR"
+    },
+    "resources": [
+        {
+            "type": "Microsoft.OperationalInsights/workspaces/providers/contentTemplates",
+            "apiVersion": "2023-04-01-preview",
+            "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/', variables('dataConnectorTemplateNameConnectorDefinition'), variables('dataConnectorVersionConnectorDefinition'))]",
+            "location": "[variables('location')]",
+            "dependsOn": [
+                "[extensionResourceId(resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspace')), 'Microsoft.SecurityInsights/contentPackages', variables('_solutionId'))]"
+            ],
+            "properties": {
+                "contentId": "[variables('_dataConnectorContentIdConnectorDefinition')]",
+                "displayName": "[concat(variables('_solutionName'), variables('dataConnectorTemplateNameConnectorDefinition'))]",
+                "contentKind": "DataConnector",
+                "mainTemplate": {
+                    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+                    "contentVersion": "[variables('dataConnectorVersionConnectorDefinition')]",
+                    "parameters": {},
+                    "variables": {},
+                    "resources": [
+                        {
+                            "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/',concat('DataConnector-', variables('_dataConnectorContentIdConnectorDefinition')))]",
+                            "apiVersion": "2022-01-01-preview",
+                            "type": "Microsoft.OperationalInsights/workspaces/providers/metadata",
+                            "properties": {
+                                "parentId": "[extensionResourceId(resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspace')), 'Microsoft.SecurityInsights/dataConnectorDefinitions', variables('_dataConnectorContentIdConnectorDefinition'))]",
+                                "contentId": "[variables('_dataConnectorContentIdConnectorDefinition')]",
+                                "kind": "DataConnector",
+                                "version": "[variables('dataConnectorVersionConnectorDefinition')]",
+                                "source": {
+                                    "sourceId": "[variables('_solutionId')]",
+                                    "name": "[variables('_solutionName')]",
+                                    "kind": "Solution"
+                                },
+                                "author": {
+                                    "name": "[variables('_solutionAuthor')]"
+                                },
+                                "support": {
+                                    "name": "[variables('_solutionAuthor')]",
+                                    "tier": "[variables('_solutionTier')]"
+                                },
+                                "dependencies": {
+                                    "criteria": [
+                                        {
+                                            "version": "[variables('dataConnectorVersionConnections')]",
+                                            "contentId": "[variables('_dataConnectorContentIdConnections')]",
+                                            "kind": "ResourcesDataConnector"
+                                        }
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "[variables('_dcrName')]",
+                            "apiVersion": "2021-09-01-preview",
+                            "type": "Microsoft.Insights/dataCollectionRules",
+                            "location": "[variables('location')]",
+                            "properties": {
+                                "dataCollectionEndpointId": "[concat('/subscriptions/',parameters('subscription'),'/resourceGroups/',parameters('resourceGroupName'),'/providers/Microsoft.Insights/dataCollectionEndpoints/',parameters('workspace'))]",
+                                "streamDeclarations": {
+                                    "Custom-TeamsCallRecords_CL": {
+                                        "columns": [
+                                            { "name": "id", "type": "string" },
+                                            { "name": "type", "type": "string" },
+                                            { "name": "modalities", "type": "dynamic" },
+                                            { "name": "startDateTime", "type": "datetime" },
+                                            { "name": "endDateTime", "type": "datetime" },
+                                            { "name": "lastModifiedDateTime", "type": "datetime" },
+                                            { "name": "version", "type": "long" },
+                                            { "name": "joinWebUrl", "type": "string" },
+                                            { "name": "organizer_v2", "type": "dynamic" },
+                                            { "name": "participants_v2", "type": "dynamic" },
+                                            { "name": "sessions", "type": "dynamic" }
+                                        ]
+                                    }
+                                },
+                                "destinations": {
+                                    "logAnalytics": [
+                                        {
+                                            "workspaceResourceId": "[variables('workspaceResourceId')]",
+                                            "name": "teamscallrecordsws"
+                                        }
+                                    ]
+                                },
+                                "dataFlows": [
+                                    {
+                                        "streams": [
+                                            "Custom-TeamsCallRecords_CL"
+                                        ],
+                                        "destinations": [
+                                            "teamscallrecordsws"
+                                        ],
+                                        "transformKql": "source\n| extend TimeGenerated = todatetime(lastModifiedDateTime)\n| project\n    TimeGenerated,\n    CallId = tostring(id),\n    CallType = tostring(type),\n    Modalities = modalities,\n    CallVersion = tolong(version),\n    StartTimeUtc = todatetime(startDateTime),\n    EndTimeUtc = todatetime(endDateTime),\n    LastModifiedTimeUtc = todatetime(lastModifiedDateTime),\n    JoinWebUrl = tostring(joinWebUrl),\n    Organizer = organizer_v2,\n    Participants = participants_v2,\n    ParticipantCount = toint(array_length(participants_v2)),\n    Sessions = sessions,\n    SessionCount = toint(array_length(sessions))\n",
+                                        "outputStream": "Custom-TeamsCallRecords_CL"
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            "name": "[variables('_tableName')]",
+                            "apiVersion": "2022-10-01",
+                            "type": "Microsoft.OperationalInsights/workspaces/tables",
+                            "properties": {
+                                "schema": {
+                                    "name": "[variables('_tableName')]",
+                                    "columns": [
+                                        { "name": "TimeGenerated", "type": "datetime" },
+                                        { "name": "CallId", "type": "string" },
+                                        { "name": "CallType", "type": "string" },
+                                        { "name": "Modalities", "type": "dynamic" },
+                                        { "name": "CallVersion", "type": "long" },
+                                        { "name": "StartTimeUtc", "type": "datetime" },
+                                        { "name": "EndTimeUtc", "type": "datetime" },
+                                        { "name": "LastModifiedTimeUtc", "type": "datetime" },
+                                        { "name": "JoinWebUrl", "type": "string" },
+                                        { "name": "Organizer", "type": "dynamic" },
+                                        { "name": "Participants", "type": "dynamic" },
+                                        { "name": "ParticipantCount", "type": "int" },
+                                        { "name": "Sessions", "type": "dynamic" },
+                                        { "name": "SessionCount", "type": "int" }
+                                    ]
+                                }
+                            }
+                        }
+                    ]
+                },
+                "packageKind": "Solution",
+                "packageVersion": "[variables('_solutionVersion')]",
+                "packageName": "[variables('_solutionName')]",
+                "contentProductId": "[concat(substring(variables('_solutionId'), 0, 50),'-','dc','-', uniqueString(concat(variables('_solutionId'),'-','DataConnector','-',variables('_dataConnectorContentIdConnectorDefinition'),'-', variables('dataConnectorVersionConnectorDefinition'))))]",
+                "packageId": "[variables('_solutionId')]",
+                "contentSchemaVersion": "3.0.0",
+                "version": "[variables('_solutionVersion')]"
+            }
+        },
+        {
+            "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/',variables('_dataConnectorContentIdConnectorDefinition'))]",
+            "apiVersion": "2022-09-01-preview",
+            "type": "Microsoft.OperationalInsights/workspaces/providers/dataConnectorDefinitions",
+            "location": "[variables('location')]",
+            "kind": "Customizable",
+            "properties": {
+                "connectorUiConfig": {
+                    "title": "Microsoft Teams Call Records (via Microsoft Graph)",
+                    "publisher": "Custom",
+                    "descriptionMarkdown": "Ingests [Microsoft Teams call quality and usage records](https://learn.microsoft.com/en-us/graph/api/resources/callrecords-callrecord) from the Microsoft Graph **Cloud Communications** API into Microsoft Sentinel. For every call or meeting, this connector collects the call record together with its organizer, participants, per-leg sessions and segment-level media/device/network quality metrics (jitter, packet loss, round-trip time, codecs). Useful for call-quality troubleshooting, Teams adoption/usage analytics, and investigating anomalous calling patterns (e.g. unusual PSTN usage).\n\n> Requires a Microsoft Entra ID app registration granted the **CallRecords.Read.All** Microsoft Graph *application* permission with admin consent. See the connector README for a setup script.",
+                    "graphQueriesTableName": "TeamsCallRecords_CL",
+                    "graphQueries": [
+                        {
+                            "metricName": "Call records received",
+                            "legend": "Teams Call Records",
+                            "baseQuery": "{{graphQueriesTableName}}"
+                        }
+                    ],
+                    "sampleQueries": [
+                        {
+                            "description": "Most recent call records",
+                            "query": "{{graphQueriesTableName}}\n| sort by TimeGenerated desc\n| take 50"
+                        },
+                        {
+                            "description": "Call volume per day",
+                            "query": "{{graphQueriesTableName}}\n| summarize Calls = dcount(CallId) by bin(StartTimeUtc, 1d)\n| render timechart"
+                        },
+                        {
+                            "description": "Sessions with high audio packet loss (mv-expand into segments/media/streams)",
+                            "query": "{{graphQueriesTableName}}\n| mv-expand Session = Sessions\n| mv-expand Segment = Session.segments\n| mv-expand Media = Segment.media\n| mv-expand Stream = Media.streams\n| extend AudioCodec = tostring(Stream.audioCodec), AvgPacketLossRate = todouble(Stream.averagePacketLossRate), AvgJitter = Stream.averageAudioNetworkJitter, AvgRoundTripTime = Stream.averageRoundTripTime, CallerIp = tostring(Media.callerNetwork.ipAddress), CalleeIp = tostring(Media.calleeNetwork.ipAddress)\n| where AvgPacketLossRate > 0.05\n| project TimeGenerated, CallId, AudioCodec, AvgPacketLossRate, AvgJitter, AvgRoundTripTime, CallerIp, CalleeIp\n| sort by AvgPacketLossRate desc"
+                        },
+                        {
+                            "description": "Failed call segments grouped by reason",
+                            "query": "{{graphQueriesTableName}}\n| mv-expand Session = Sessions\n| mv-expand Segment = Session.segments\n| extend FailureReason = tostring(Segment.failureInfo.reason), FailureStage = tostring(Segment.failureInfo.stage)\n| where isnotempty(FailureReason)\n| summarize FailedSegments = count() by FailureReason, FailureStage\n| sort by FailedSegments desc"
+                        },
+                        {
+                            "description": "Top call organizers",
+                            "query": "{{graphQueriesTableName}}\n| extend OrganizerDisplayName = tostring(Organizer.identity.user.displayName), OrganizerUserId = tostring(Organizer.identity.user.id)\n| summarize CallCount = dcount(CallId) by OrganizerDisplayName, OrganizerUserId\n| sort by CallCount desc"
+                        }
+                    ],
+                    "dataTypes": [
+                        {
+                            "name": "{{graphQueriesTableName}}",
+                            "lastDataReceivedQuery": "{{graphQueriesTableName}}\n| summarize Time = max(TimeGenerated)\n| where isnotempty(Time)"
+                        }
+                    ],
+                    "connectivityCriteria": [
+                        {
+                            "type": "HasDataConnectors"
+                        }
+                    ],
+                    "availability": {
+                        "status": 1,
+                        "isPreview": true
+                    },
+                    "permissions": {
+                        "resourceProvider": [
+                            {
+                                "provider": "Microsoft.OperationalInsights/workspaces",
+                                "permissionsDisplayText": "Read and Write permissions are required.",
+                                "providerDisplayName": "Workspace",
+                                "scope": "Workspace",
+                                "requiredPermissions": {
+                                    "write": true,
+                                    "read": true,
+                                    "delete": true
+                                }
+                            }
+                        ],
+                        "customs": [
+                            {
+                                "name": "Microsoft Entra ID application with CallRecords.Read.All",
+                                "description": "Requires a Microsoft Entra ID app registration granted the Microsoft Graph application permission CallRecords.Read.All with tenant admin consent, plus a client secret. The call records API doesn't support delegated/user permissions. Run the included New-GraphAppRegistration.ps1 script to automate this step."
+                            }
+                        ]
+                    },
+                    "instructionSteps": [
+                        {
+                            "title": "Connect Microsoft Teams Call Records to Microsoft Sentinel",
+                            "description": "1. Register a Microsoft Entra ID application (or run the included New-GraphAppRegistration.ps1 script) and grant it the CallRecords.Read.All Microsoft Graph application permission with admin consent.\n2. Create a client secret for the application and copy its value immediately - it isn't retrievable again.\n3. Enter the Tenant ID, Client (Application) ID and Client Secret below.\n4. Select Connect.\n\n>Note: Call records are retained by Microsoft Graph for only 30 days after a call ends, and this connector starts collecting from the moment you connect - it does not back-fill history older than that. See the connector README for polling-window tradeoffs on very long-running meetings.",
+                            "instructions": [
+                                {
+                                    "type": "Textbox",
+                                    "parameters": {
+                                        "label": "Tenant ID",
+                                        "placeholder": "00000000-0000-0000-0000-000000000000",
+                                        "type": "text",
+                                        "name": "tenantId"
+                                    }
+                                },
+                                {
+                                    "type": "OAuthForm",
+                                    "parameters": {
+                                        "clientIdLabel": "Client (Application) ID",
+                                        "clientSecretLabel": "Client Secret",
+                                        "connectButtonLabel": "Connect",
+                                        "disconnectButtonLabel": "Disconnect"
+                                    }
+                                }
+                            ]
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/',concat('DataConnector-', variables('_dataConnectorContentIdConnectorDefinition')))]",
+            "apiVersion": "2022-01-01-preview",
+            "type": "Microsoft.OperationalInsights/workspaces/providers/metadata",
+            "properties": {
+                "parentId": "[extensionResourceId(resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspace')), 'Microsoft.SecurityInsights/dataConnectorDefinitions', variables('_dataConnectorContentIdConnectorDefinition'))]",
+                "contentId": "[variables('_dataConnectorContentIdConnectorDefinition')]",
+                "kind": "DataConnector",
+                "version": "[variables('dataConnectorVersionConnectorDefinition')]",
+                "source": {
+                    "sourceId": "[variables('_solutionId')]",
+                    "name": "[variables('_solutionName')]",
+                    "kind": "Solution"
+                },
+                "author": {
+                    "name": "[variables('_solutionAuthor')]"
+                },
+                "support": {
+                    "name": "[variables('_solutionAuthor')]",
+                    "tier": "[variables('_solutionTier')]"
+                },
+                "dependencies": {
+                    "criteria": [
+                        {
+                            "version": "[variables('dataConnectorVersionConnections')]",
+                            "contentId": "[variables('_dataConnectorContentIdConnections')]",
+                            "kind": "ResourcesDataConnector"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "type": "Microsoft.OperationalInsights/workspaces/providers/contentTemplates",
+            "apiVersion": "2023-04-01-preview",
+            "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/', variables('dataConnectorTemplateNameConnections'), variables('dataConnectorVersionConnections'))]",
+            "location": "[variables('location')]",
+            "dependsOn": [
+                "[extensionResourceId(resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspace')), 'Microsoft.SecurityInsights/contentPackages', variables('_solutionId'))]"
+            ],
+            "properties": {
+                "contentId": "[variables('_dataConnectorContentIdConnections')]",
+                "displayName": "[concat(variables('_solutionName'), variables('dataConnectorTemplateNameConnections'))]",
+                "contentKind": "ResourcesDataConnector",
+                "mainTemplate": {
+                    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+                    "contentVersion": "[variables('dataConnectorVersionConnections')]",
+                    "parameters": {
+                        "tenantId": {
+                            "defaultValue": "-NA-",
+                            "type": "string",
+                            "minLength": 1,
+                            "metadata": {
+                                "description": "Microsoft Entra ID (Azure AD) tenant ID."
+                            }
+                        },
+                        "clientId": {
+                            "defaultValue": "-NA-",
+                            "type": "string",
+                            "minLength": 1,
+                            "metadata": {
+                                "description": "Application (client) ID of the Entra app registration granted CallRecords.Read.All."
+                            }
+                        },
+                        "clientSecret": {
+                            "defaultValue": "-NA-",
+                            "type": "securestring",
+                            "minLength": 1,
+                            "metadata": {
+                                "description": "Client secret value for the Entra app registration."
+                            }
+                        },
+                        "connectorDefinitionName": {
+                            "defaultValue": "TeamsCallRecordsCCFConnectorDefinition",
+                            "type": "string",
+                            "minLength": 1
+                        },
+                        "workspace": {
+                            "defaultValue": "[parameters('workspace')]",
+                            "type": "string"
+                        },
+                        "dcrConfig": {
+                            "type": "object",
+                            "defaultValue": {
+                                "dataCollectionEndpoint": "data collection Endpoint",
+                                "dataCollectionRuleImmutableId": "data collection rule immutableId"
+                            }
+                        }
+                    },
+                    "variables": {
+                        "_dataConnectorContentIdConnections": "[variables('_dataConnectorContentIdConnections')]"
+                    },
+                    "resources": [
+                        {
+                            "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/',concat('DataConnector-', variables('_dataConnectorContentIdConnections')))]",
+                            "apiVersion": "2022-01-01-preview",
+                            "type": "Microsoft.OperationalInsights/workspaces/providers/metadata",
+                            "properties": {
+                                "parentId": "[extensionResourceId(resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspace')), 'Microsoft.SecurityInsights/dataConnectors', variables('_dataConnectorContentIdConnections'))]",
+                                "contentId": "[variables('_dataConnectorContentIdConnections')]",
+                                "kind": "ResourcesDataConnector",
+                                "version": "[variables('dataConnectorVersionConnections')]",
+                                "source": {
+                                    "sourceId": "[variables('_solutionId')]",
+                                    "name": "[variables('_solutionName')]",
+                                    "kind": "Solution"
+                                },
+                                "author": {
+                                    "name": "[variables('_solutionAuthor')]"
+                                },
+                                "support": {
+                                    "name": "[variables('_solutionAuthor')]",
+                                    "tier": "[variables('_solutionTier')]"
+                                }
+                            }
+                        },
+                        {
+                            "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/', 'TeamsCallRecordsCCF')]",
+                            "apiVersion": "2022-12-01-preview",
+                            "type": "Microsoft.OperationalInsights/workspaces/providers/dataConnectors",
+                            "location": "[variables('location')]",
+                            "kind": "RestApiPoller",
+                            "properties": {
+                                "connectorDefinitionName": "[[parameters('connectorDefinitionName')]",
+                                "dataType": "TeamsCallRecords",
+                                "isActive": true,
+                                "dcrConfig": {
+                                    "dataCollectionEndpoint": "[[parameters('dcrConfig').dataCollectionEndpoint]",
+                                    "dataCollectionRuleImmutableId": "[[parameters('dcrConfig').dataCollectionRuleImmutableId]",
+                                    "streamName": "Custom-TeamsCallRecords_CL"
+                                },
+                                "auth": {
+                                    "type": "OAuth2",
+                                    "ClientId": "[[parameters('clientId')]",
+                                    "ClientSecret": "[[parameters('clientSecret')]",
+                                    "tokenEndpoint": "[[concat('https://login.microsoftonline.com/',parameters('tenantId'),'/oauth2/v2.0/token')]",
+                                    "tokenEndpointHeaders": {
+                                        "Accept": "application/json",
+                                        "Content-Type": "application/x-www-form-urlencoded"
+                                    },
+                                    "scope": "https://graph.microsoft.com/.default",
+                                    "grantType": "client_credentials"
+                                },
+                                "request": {
+                                    "apiEndpoint": "https://graph.microsoft.com/v1.0/communications/callRecords",
+                                    "httpMethod": "GET",
+                                    "queryWindowInMin": 1440,
+                                    "queryTimeFormat": "yyyy-MM-ddTHH:mm:ssZ",
+                                    "rateLimitQPS": 5,
+                                    "retryCount": 3,
+                                    "timeoutInSeconds": 60,
+                                    "headers": {
+                                        "Accept": "application/json",
+                                        "Prefer": "odata.maxpagesize=500"
+                                    },
+                                    "queryParameters": {
+                                        "$filter": "startDateTime ge {_QueryWindowStartTime} and startDateTime le {_QueryWindowEndTime}"
+                                    }
+                                },
+                                "paging": {
+                                    "pagingType": "LinkHeader",
+                                    "linkHeaderTokenJsonPath": "$['@odata.nextLink']"
+                                },
+                                "response": {
+                                    "eventsJsonPaths": [
+                                        "$.value"
+                                    ],
+                                    "format": "json"
+                                },
+                                "stepInfo": {
+                                    "stepType": "Nested",
+                                    "nextSteps": [
+                                        {
+                                            "stepId": "fetchCallRecordDetail",
+                                            "stepPlaceholdersParsingKql": "source | project res = parse_json(data) | project callRecordId = res.id"
+                                        }
+                                    ]
+                                },
+                                "stepCollectorConfigs": {
+                                    "fetchCallRecordDetail": {
+                                        "shouldJoinNestedData": false,
+                                        "request": {
+                                            "httpMethod": "GET",
+                                            "apiEndpoint": "https://graph.microsoft.com/v1.0/communications/callRecords/$callRecordId$",
+                                            "queryParameters": {
+                                                "$expand": "sessions($expand=segments)"
+                                            },
+                                            "headers": {
+                                                "Accept": "application/json"
+                                            },
+                                            "retryCount": 3,
+                                            "timeoutInSeconds": 60,
+                                            "maxParallelism": 10
+                                        },
+                                        "response": {
+                                            "eventsJsonPaths": [
+                                                "$"
+                                            ],
+                                            "format": "json"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    ]
+                },
+                "packageKind": "Solution",
+                "packageVersion": "[variables('_solutionVersion')]",
+                "packageName": "[variables('_solutionName')]",
+                "contentProductId": "[concat(substring(variables('_solutionId'), 0, 50),'-','rdc','-', uniqueString(concat(variables('_solutionId'),'-','ResourcesDataConnector','-',variables('_dataConnectorContentIdConnections'),'-', variables('dataConnectorVersionConnections'))))]",
+                "packageId": "[variables('_solutionId')]",
+                "contentSchemaVersion": "3.0.0",
+                "version": "[variables('_solutionVersion')]"
+            }
+        },
+        {
+            "type": "Microsoft.OperationalInsights/workspaces/providers/contentPackages",
+            "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/', variables('_solutionId'))]",
+            "location": "[variables('location')]",
+            "apiVersion": "2023-04-01-preview",
+            "properties": {
+                "version": "[variables('_solutionVersion')]",
+                "kind": "Solution",
+                "contentSchemaVersion": "3.0.0",
+                "contentId": "[variables('_solutionId')]",
+                "source": {
+                    "kind": "Solution",
+                    "name": "[variables('_solutionName')]",
+                    "sourceId": "[variables('_solutionId')]"
+                },
+                "author": {
+                    "name": "[variables('_solutionAuthor')]"
+                },
+                "support": {
+                    "name": "[variables('_solutionAuthor')]"
+                },
+                "dependencies": {
+                    "operator": "AND",
+                    "criteria": [
+                        {
+                            "kind": "DataConnector",
+                            "contentId": "[variables('dataConnectorVersionConnectorDefinition')]",
+                            "version": "[variables('_dataConnectorContentIdConnectorDefinition')]"
+                        }
+                    ]
+                },
+                "firstPublishDate": "2026-11-17",
+                "providers": [
+                    "[variables('_solutionAuthor')]"
+                ],
+                "contentKind": "Solution",
+                "packageId": "[variables('_solutionId')]",
+                "contentProductId": "[concat(substring(variables('_solutionId'), 0, 50),'-','sl','-', uniqueString(concat(variables('_solutionId'),'-','Solution','-',variables('_solutionId'),'-', variables('_solutionVersion'))))]",
+                "displayName": "[variables('_solutionName')]",
+                "publisherDisplayName": "[variables('_solutionId')]",
+                "descriptionHtml": "Ingests Microsoft Teams call records, sessions, and segment-level quality metrics from Microsoft Graph into Microsoft Sentinel.",
+                "icon": "[variables('_packageIcon')]"
+            }
+        }
+    ]
+}
